@@ -4688,6 +4688,8 @@ export function RetroOffice3D({
       onStandupStartRequested,
       qaTerminal,
       resolveAgentIdForDeskItem,
+      planPath,
+      renderAgentsRef,
       serverTerminal,
       voiceRepliesEnabled,
       voiceRepliesLoaded,
