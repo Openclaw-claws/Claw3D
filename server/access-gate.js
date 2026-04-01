@@ -28,8 +28,25 @@ function createAccessGate(options) {
 
   const handleHttp = (req, res) => {
     if (!enabled) return false;
+
+    // Allow access via ?token=xxx query param — sets cookie and redirects
+    const url = String(req.url || "/");
+    const queryIdx = url.indexOf("?");
+    if (queryIdx !== -1) {
+      const params = new URLSearchParams(url.slice(queryIdx + 1));
+      const queryToken = params.get("token");
+      if (queryToken === token) {
+        const cleanPath = url.slice(0, queryIdx) || "/";
+        res.statusCode = 302;
+        res.setHeader("Set-Cookie", `${cookieName}=${token}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax`);
+        res.setHeader("Location", cleanPath);
+        res.end();
+        return true;
+      }
+    }
+
     if (!isAuthorized(req)) {
-      if (String(req.url || "/").startsWith("/api/")) {
+      if (url.startsWith("/api/")) {
         res.statusCode = 401;
         res.setHeader("Content-Type", "application/json");
         res.end(

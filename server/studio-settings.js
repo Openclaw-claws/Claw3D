@@ -83,6 +83,13 @@ const readOpenclawGatewayDefaults = (env = process.env) => {
 };
 
 const loadUpstreamGatewaySettings = (env = process.env) => {
+  // Environment variables take highest priority (for cloud deployments)
+  const envUrl = typeof env.CLAW3D_GATEWAY_URL === "string" ? env.CLAW3D_GATEWAY_URL.trim() : "";
+  const envToken = typeof env.CLAW3D_GATEWAY_TOKEN === "string" ? env.CLAW3D_GATEWAY_TOKEN.trim() : "";
+  if (envUrl && envToken) {
+    return { url: envUrl, token: envToken, settingsPath: "(env)" };
+  }
+
   const settingsPath = resolveStudioSettingsPath(env);
   const parsed = readJsonFile(settingsPath);
   const gateway = parsed && typeof parsed === "object" ? parsed.gateway : null;
@@ -92,15 +99,15 @@ const loadUpstreamGatewaySettings = (env = process.env) => {
     const defaults = readOpenclawGatewayDefaults(env);
     if (defaults) {
       return {
-        url: url || defaults.url,
-        token: defaults.token,
+        url: envUrl || url || defaults.url,
+        token: envToken || defaults.token,
         settingsPath,
       };
     }
   }
   return {
-    url: url || DEFAULT_GATEWAY_URL,
-    token,
+    url: envUrl || url || DEFAULT_GATEWAY_URL,
+    token: envToken || token,
     settingsPath,
   };
 };
