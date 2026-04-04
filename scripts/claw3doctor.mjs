@@ -8,6 +8,7 @@ import {
   buildCustomRuntimeWarnings,
   buildDoctorJsonReport,
   buildGatewayFailureActions,
+  classifyGatewayFailure,
   buildProfileWarnings,
   DOCTOR_STATUSES,
   buildGatewayWarnings,
@@ -105,9 +106,32 @@ const checkFail = (category, label, message, actions) => ({
 
 const trim = (value) => (typeof value === "string" ? value.trim() : "");
 
-const parseDoctorArgs = (argv) => ({
-  json: argv.includes("--json"),
-});
+const parseDoctorArgs = (argv) => {
+  const args = {
+    json: false,
+    allProfiles: false,
+    profile: null,
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const entry = argv[index];
+    if (entry === "--json") {
+      args.json = true;
+      continue;
+    }
+    if (entry === "--all-profiles") {
+      args.allProfiles = true;
+      continue;
+    }
+    if (entry === "--profile") {
+      const next = trim(argv[index + 1]).toLowerCase();
+      if (next) {
+        args.profile = next;
+        index += 1;
+      }
+    }
+  }
+  return args;
+};
 
 const probeWebSocket = async (url, timeoutMs = 3500) =>
   await new Promise((resolve) => {
@@ -301,6 +325,40 @@ async function main() {
     ]));
   }
 
+  if (args.profile) {
+    const requestedProfile = runtimeContext.profiles?.[args.profile];
+    checks.push(
+      requestedProfile
+        ? checkPass(
+            "Runtime profiles",
+            "Profile selection",
+            `Scoped diagnostics to the ${args.profile} profile.`,
+          )
+        : checkFail(
+            "Runtime profiles",
+            "Profile selection",
+            `Requested profile "${args.profile}" is not configured in current Studio settings.`,
+            ["Run `node scripts/claw3doctor.mjs --all-profiles` to see the configured profile list."],
+          ),
+    );
+  } else if (args.allProfiles) {
+    checks.push(
+      checkPass(
+        "Runtime profiles",
+        "Profile selection",
+        "Running diagnostics across all configured runtime profiles.",
+      ),
+    );
+  } else {
+    checks.push(
+      checkPass(
+        "Runtime profiles",
+        "Profile selection",
+        `Running diagnostics for the selected ${runtimeContext.adapterType} profile only.`,
+      ),
+    );
+  }
+
   for (const warning of buildGatewayWarnings({
     gatewayUrl: runtimeContext.gatewayUrl,
     studioAccessToken: trim(env.STUDIO_ACCESS_TOKEN),
@@ -330,7 +388,11 @@ async function main() {
     }
   }
 
-  const profileEntries = Object.entries(runtimeContext.profiles ?? {});
+  const profileEntries = Object.entries(runtimeContext.profiles ?? {}).filter(([adapterType]) => {
+    if (args.allProfiles) return true;
+    if (args.profile) return adapterType === args.profile;
+    return adapterType === runtimeContext.adapterType;
+  });
   for (const [adapterTypeRaw, profile] of profileEntries) {
     const adapterType = adapterTypeRaw;
     const url = trim(profile?.url);
@@ -358,6 +420,16 @@ async function main() {
             ),
           ),
     );
+    const classification = classifyGatewayFailure({ message: health.message });
+    if (classification) {
+      checks.push(
+        checkWarn(
+          "Failure analysis",
+          `${label} failure class`,
+          `${classification.code} ${classification.label}: ${classification.message}`,
+        ),
+      );
+    }
   }
 
   const openclawConfigPath = path.join(stateDir, "openclaw.json");

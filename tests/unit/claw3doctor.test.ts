@@ -4,6 +4,7 @@ import {
   buildCustomRuntimeWarnings,
   buildDoctorJsonReport,
   buildGatewayFailureActions,
+  classifyGatewayFailure,
   buildProfileWarnings,
   buildOpenClawWarnings,
   DOCTOR_STATUSES,
@@ -145,6 +146,33 @@ describe("claw3doctor core", () => {
         expect.stringContaining("Tailnet-hosted"),
       ]),
     );
+  });
+
+  it("classifies common gateway failure signatures", () => {
+    expect(
+      classifyGatewayFailure({
+        message: "Unexpected HTTP 401 during WebSocket upgrade",
+      }),
+    ).toMatchObject({
+      code: "401",
+      label: "Auth rejection",
+    });
+    expect(
+      classifyGatewayFailure({
+        message: "connect failed: 1008 pairing required",
+      }),
+    ).toMatchObject({
+      code: "1008",
+      label: "Policy or pairing gate",
+    });
+    expect(
+      classifyGatewayFailure({
+        message: "connect ECONNREFUSED ::1:18789",
+      }),
+    ).toMatchObject({
+      code: "ECONNREFUSED",
+      label: "Listener missing",
+    });
   });
 
   it("summarizes checks by worst status", () => {

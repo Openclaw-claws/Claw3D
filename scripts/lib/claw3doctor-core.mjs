@@ -283,6 +283,72 @@ export const buildGatewayFailureActions = ({ adapterType, message = "", gatewayU
   return [...new Set(actions)];
 };
 
+export const classifyGatewayFailure = ({ message = "" }) => {
+  const normalized = trimString(message).toLowerCase();
+  if (!normalized) return null;
+
+  if (normalized.includes("1008") || normalized.includes("pairing required")) {
+    return {
+      code: "1008",
+      label: "Policy or pairing gate",
+      message:
+        "The upstream is rejecting this session for policy/pairing reasons. Check device approval, browser identity, and token flow.",
+    };
+  }
+
+  if (normalized.includes("1011")) {
+    return {
+      code: "1011",
+      label: "Upstream runtime or proxy failure",
+      message:
+        "The websocket upgraded but the upstream failed mid-connect or during runtime handling. Check runtime logs and reverse-proxy websocket support.",
+    };
+  }
+
+  if (normalized.includes("1012")) {
+    return {
+      code: "1012",
+      label: "Service restart or temporary unavailability",
+      message:
+        "The upstream likely restarted or was briefly unavailable. Recheck service health and retry once the backend settles.",
+    };
+  }
+
+  if (
+    normalized.includes("401") ||
+    normalized.includes("403") ||
+    normalized.includes("unexpected http 401") ||
+    normalized.includes("unexpected http 403")
+  ) {
+    return {
+      code: normalized.includes("403") ? "403" : "401",
+      label: "Auth rejection",
+      message:
+        "The upstream or proxy rejected auth before the office connected. Recheck the selected profile token, studio access path, and adapter env alignment.",
+    };
+  }
+
+  if (normalized.includes("econnrefused")) {
+    return {
+      code: "ECONNREFUSED",
+      label: "Listener missing",
+      message:
+        "Nothing is listening on the configured host/port. Start the backend or fix the profile URL before retrying.",
+    };
+  }
+
+  if (normalized.includes("timed out")) {
+    return {
+      code: "TIMEOUT",
+      label: "Connection timeout",
+      message:
+        "The endpoint did not complete the handshake in time. Check proxy path, host reachability, and whether the backend is overloaded or hanging.",
+    };
+  }
+
+  return null;
+};
+
 export const summarizeChecks = (checks) => {
   let hasFail = false;
   let hasWarn = false;
