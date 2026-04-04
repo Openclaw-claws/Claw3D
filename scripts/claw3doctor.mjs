@@ -176,6 +176,24 @@ const detectOpenClawVersion = () => {
   }
 };
 
+const detectWorkspaceState = () => {
+  try {
+    const branch = execFileSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 3000,
+    }).trim();
+    const dirty = execFileSync("git", ["status", "--porcelain"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+      timeout: 3000,
+    }).trim().length > 0;
+    return { branch, dirty, available: true };
+  } catch {
+    return { branch: "", dirty: false, available: false };
+  }
+};
+
 const detectHermesModelHealth = async () => {
   const apiUrl = (trim(process.env.HERMES_API_URL) || "http://localhost:8642").replace(/\/$/, "");
   const apiKey = trim(process.env.HERMES_API_KEY);
@@ -211,6 +229,22 @@ const probeCustomRuntimeHealth = async (runtimeUrl) => {
   };
 };
 
+const probeProfileHealth = async ({ adapterType, url }) => {
+  if (adapterType === "custom") {
+    const result = await probeCustomRuntimeHealth(url);
+    return {
+      ok: result.ok,
+      message: result.message,
+    };
+  }
+
+  const result = await probeWebSocket(url);
+  return {
+    ok: result.ok,
+    message: result.message,
+  };
+};
+
 async function main() {
   loadRuntimeEnv();
   const args = parseDoctorArgs(process.argv.slice(2));
@@ -225,8 +259,21 @@ async function main() {
     upstreamGateway,
     env,
   });
+  const workspace = detectWorkspaceState();
 
   const checks = [];
+
+  checks.push(
+    workspace.available
+      ? workspace.dirty
+        ? checkWarn(
+            "Workspace",
+            "Git branch",
+            `${workspace.branch} (working tree has local modifications)`,
+          )
+        : checkPass("Workspace", "Git branch", `${workspace.branch} (clean working tree)`)
+      : checkWarn("Workspace", "Git branch", "Git branch could not be detected from this working directory."),
+  );
 
   checks.push(
     runtimeContext.gatewayUrl
@@ -283,44 +330,34 @@ async function main() {
     }
   }
 
-  if (runtimeContext.gatewayUrl) {
-    if (runtimeContext.adapterType === "custom") {
-      const customProbe = await probeCustomRuntimeHealth(runtimeContext.gatewayUrl);
-      checks.push(
-        customProbe.ok
-          ? checkPass("Custom runtime", "Custom runtime reachability", customProbe.message)
-          : checkFail(
-              "Custom runtime",
-              "Custom runtime reachability",
-              customProbe.message,
-              buildGatewayFailureActions({
-                adapterType: runtimeContext.adapterType,
-                message: customProbe.message,
-                gatewayUrl: runtimeContext.gatewayUrl,
-              }).concat([
-                "If this runtime sits behind the Studio custom proxy, verify CUSTOM_RUNTIME_ALLOWLIST / UPSTREAM_ALLOWLIST for the target host.",
-              ]),
+  const profileEntries = Object.entries(runtimeContext.profiles ?? {});
+  for (const [adapterTypeRaw, profile] of profileEntries) {
+    const adapterType = adapterTypeRaw;
+    const url = trim(profile?.url);
+    if (!url) continue;
+    const isSelected = adapterType === runtimeContext.adapterType;
+    const label = `${adapterType} profile${isSelected ? " (selected)" : ""}`;
+    const health = await probeProfileHealth({ adapterType, url });
+    checks.push(
+      health.ok
+        ? checkPass("Profile health", label, `${url} -> ${health.message}`)
+        : checkFail(
+            "Profile health",
+            label,
+            `${url} -> ${health.message}`,
+            buildGatewayFailureActions({
+              adapterType,
+              message: health.message,
+              gatewayUrl: url,
+            }).concat(
+              adapterType === "custom"
+                ? [
+                    "If this runtime sits behind the Studio custom proxy, verify CUSTOM_RUNTIME_ALLOWLIST / UPSTREAM_ALLOWLIST for the target host.",
+                  ]
+                : ["Verify the configured gateway URL is correct and the backend is listening."],
             ),
-      );
-    } else {
-      const wsProbe = await probeWebSocket(runtimeContext.gatewayUrl);
-      checks.push(
-        wsProbe.ok
-          ? checkPass("Gateway access", "Gateway reachability", wsProbe.message)
-          : checkFail(
-              "Gateway access",
-              "Gateway reachability",
-              wsProbe.message,
-              buildGatewayFailureActions({
-                adapterType: runtimeContext.adapterType,
-                message: wsProbe.message,
-                gatewayUrl: runtimeContext.gatewayUrl,
-              }).concat([
-                "Verify the configured gateway URL is correct and the backend is listening.",
-              ]),
-            ),
-      );
-    }
+          ),
+    );
   }
 
   const openclawConfigPath = path.join(stateDir, "openclaw.json");

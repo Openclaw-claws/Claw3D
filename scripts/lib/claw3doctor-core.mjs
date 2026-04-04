@@ -50,6 +50,12 @@ export const resolveRuntimeContext = ({ settings, upstreamGateway, env = process
           url: DEFAULT_GATEWAY_URL_BY_ADAPTER[adapterType],
           token: "",
         };
+  if (selectedProfile?.url && !profiles[adapterType]) {
+    profiles[adapterType] = {
+      url: selectedProfile.url,
+      token: selectedProfile.token ?? "",
+    };
+  }
 
   return {
     adapterType,
