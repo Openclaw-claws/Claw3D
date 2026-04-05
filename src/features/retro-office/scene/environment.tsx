@@ -1,6 +1,8 @@
 "use client";
 
-import { memo, type ReactNode } from "react";
+import { memo, useMemo, useRef, type ReactNode } from "react";
+import { useFrame } from "@react-three/fiber";
+import type * as THREE from "three";
 import {
   CANVAS_H,
   CANVAS_W,
@@ -368,13 +370,15 @@ function CompactCar({
   position,
   rotationY = 0,
   bodyColor,
+  scale = 1,
 }: {
   position: [number, number, number];
   rotationY?: number;
   bodyColor: string;
+  scale?: number;
 }) {
   return (
-    <group position={position} rotation={[0, rotationY, 0]}>
+    <group position={position} rotation={[0, rotationY, 0]} scale={[scale, scale, scale]}>
       <mesh position={[0, 0.12, 0]} castShadow receiveShadow>
         <boxGeometry args={[0.4, 0.14, 0.22]} />
         <meshStandardMaterial color={bodyColor} roughness={0.52} metalness={0.28} />
@@ -405,6 +409,213 @@ function CompactCar({
     </group>
   );
 }
+
+function MovingCompactCar({
+  route,
+  speed = 0.16,
+  phase = 0,
+  bodyColor,
+}: {
+  route: Array<[number, number, number]>;
+  speed?: number;
+  phase?: number;
+  bodyColor: string;
+}) {
+  const groupRef = useRef<THREE.Group>(null);
+  const segmentLengths = useMemo(() => {
+    if (route.length < 2) return [];
+    const lengths: number[] = [];
+    for (let index = 0; index < route.length - 1; index += 1) {
+      const [x1, , z1] = route[index] ?? [0, 0, 0];
+      const [x2, , z2] = route[index + 1] ?? [0, 0, 0];
+      lengths.push(Math.hypot(x2 - x1, z2 - z1));
+    }
+    return lengths;
+  }, [route]);
+  const totalLength = useMemo(
+    () => segmentLengths.reduce((sum, value) => sum + value, 0),
+    [segmentLengths],
+  );
+  useFrame((state) => {
+    if (!groupRef.current) return;
+    if (route.length < 2 || totalLength <= 0) return;
+    const elapsed = state.clock.getElapsedTime();
+    const startDistance =
+      (((elapsed + phase) * speed) % totalLength + totalLength) % totalLength;
+    let remaining = startDistance;
+    let segmentIndex = 0;
+    while (
+      segmentIndex < segmentLengths.length - 1 &&
+      remaining > (segmentLengths[segmentIndex] ?? 0)
+    ) {
+      remaining -= segmentLengths[segmentIndex] ?? 0;
+      segmentIndex += 1;
+    }
+    const currentLength = Math.max(0.0001, segmentLengths[segmentIndex] ?? 0.0001);
+    const t = remaining / currentLength;
+    const start = route[segmentIndex] ?? route[0];
+    const end = route[segmentIndex + 1] ?? route[route.length - 1];
+    const x = (start?.[0] ?? 0) + ((end?.[0] ?? 0) - (start?.[0] ?? 0)) * t;
+    const z = (start?.[2] ?? 0) + ((end?.[2] ?? 0) - (start?.[2] ?? 0)) * t;
+    const heading = Math.atan2(
+      (end?.[2] ?? 0) - (start?.[2] ?? 0),
+      (end?.[0] ?? 0) - (start?.[0] ?? 0),
+    );
+    groupRef.current.position.set(x, 0, z);
+    groupRef.current.rotation.set(0, -heading, 0);
+  });
+  if (route.length < 2 || totalLength <= 0) return null;
+  return (
+    <group ref={groupRef}>
+      <CompactCar position={[0, 0, 0]} rotationY={0} bodyColor={bodyColor} />
+    </group>
+  );
+}
+
+function CityTrafficLayer({
+  cityRoadSpanX,
+  cityRoadSpanZ,
+  localOfficeCenterX,
+  localOfficeCenterZ,
+  northRoadZ,
+  southRoadZ,
+  westRoadX,
+  eastRoadX,
+}: {
+  cityRoadSpanX: number;
+  cityRoadSpanZ: number;
+  localOfficeCenterX: number;
+  localOfficeCenterZ: number;
+  northRoadZ: number;
+  southRoadZ: number;
+  westRoadX: number;
+  eastRoadX: number;
+}) {
+  const outerLoopRoute = useMemo(
+    () =>
+      [
+        [localOfficeCenterX - cityRoadSpanX * 0.45, 0, northRoadZ],
+        [localOfficeCenterX + cityRoadSpanX * 0.45, 0, northRoadZ],
+        [eastRoadX, 0, localOfficeCenterZ + cityRoadSpanZ * 0.45],
+        [localOfficeCenterX - cityRoadSpanX * 0.45, 0, southRoadZ],
+        [westRoadX, 0, localOfficeCenterZ - cityRoadSpanZ * 0.45],
+        [localOfficeCenterX - cityRoadSpanX * 0.45, 0, northRoadZ],
+      ] as Array<[number, number, number]>,
+    [
+      cityRoadSpanX,
+      cityRoadSpanZ,
+      eastRoadX,
+      localOfficeCenterX,
+      localOfficeCenterZ,
+      northRoadZ,
+      southRoadZ,
+      westRoadX,
+    ],
+  );
+  const crossLoopRoute = useMemo(
+    () =>
+      [
+        [westRoadX, 0, localOfficeCenterZ - cityRoadSpanZ * 0.35],
+        [localOfficeCenterX + cityRoadSpanX * 0.35, 0, northRoadZ],
+        [eastRoadX, 0, localOfficeCenterZ + cityRoadSpanZ * 0.28],
+        [localOfficeCenterX - cityRoadSpanX * 0.35, 0, southRoadZ],
+        [westRoadX, 0, localOfficeCenterZ - cityRoadSpanZ * 0.35],
+      ] as Array<[number, number, number]>,
+    [
+      cityRoadSpanX,
+      cityRoadSpanZ,
+      eastRoadX,
+      localOfficeCenterX,
+      localOfficeCenterZ,
+      northRoadZ,
+      southRoadZ,
+      westRoadX,
+    ],
+  );
+
+  return (
+    <>
+      {[
+        { route: outerLoopRoute, speed: 0.2, phase: 0.0, color: "#e53935" },
+        { route: outerLoopRoute, speed: 0.2, phase: 2.4, color: "#1d4ed8" },
+        { route: outerLoopRoute, speed: 0.2, phase: 4.7, color: "#f59e0b" },
+        { route: outerLoopRoute, speed: 0.2, phase: 7.1, color: "#16a34a" },
+        { route: crossLoopRoute, speed: 0.16, phase: 1.2, color: "#8b5cf6" },
+        { route: crossLoopRoute, speed: 0.16, phase: 3.6, color: "#0284c7" },
+      ].map((traffic, index) => (
+        <MovingCompactCar
+          key={`moving-traffic-${index}`}
+          route={traffic.route}
+          speed={traffic.speed}
+          phase={traffic.phase}
+          bodyColor={traffic.color}
+        />
+      ))}
+    </>
+  );
+}
+
+type ZoneKind = "residential" | "commercial" | "industrial";
+type RoadMask = {
+  north: boolean;
+  south: boolean;
+  east: boolean;
+  west: boolean;
+};
+
+type CityGridCell = {
+  gx: number;
+  gz: number;
+  zone: ZoneKind;
+  road: boolean;
+  mask: RoadMask;
+};
+
+const CITY_GRID_COLUMNS = 10;
+const CITY_GRID_ROWS = 8;
+const CITY_GRID_CELL_SIZE = 1.18;
+
+const classifyZone = (gx: number, gz: number): ZoneKind => {
+  if (gz <= 1) return "commercial";
+  if (gz >= CITY_GRID_ROWS - 2) return "industrial";
+  return gx % 2 === 0 ? "residential" : "commercial";
+};
+
+const isRoadCell = (gx: number, gz: number): boolean => {
+  if (gz === 2 || gz === 5) return true;
+  if (gx === 2 || gx === 7) return true;
+  if ((gx === 5 && gz >= 1 && gz <= 6) || (gz === 4 && gx >= 1 && gx <= 8)) return true;
+  return false;
+};
+
+const buildCityGrid = (): CityGridCell[] => {
+  const cells: CityGridCell[] = [];
+  const roads = new Set<string>();
+  for (let gz = 0; gz < CITY_GRID_ROWS; gz += 1) {
+    for (let gx = 0; gx < CITY_GRID_COLUMNS; gx += 1) {
+      if (isRoadCell(gx, gz)) roads.add(`${gx}:${gz}`);
+    }
+  }
+  for (let gz = 0; gz < CITY_GRID_ROWS; gz += 1) {
+    for (let gx = 0; gx < CITY_GRID_COLUMNS; gx += 1) {
+      const road = roads.has(`${gx}:${gz}`);
+      const mask: RoadMask = {
+        north: roads.has(`${gx}:${gz - 1}`),
+        south: roads.has(`${gx}:${gz + 1}`),
+        east: roads.has(`${gx + 1}:${gz}`),
+        west: roads.has(`${gx - 1}:${gz}`),
+      };
+      cells.push({
+        gx,
+        gz,
+        zone: classifyZone(gx, gz),
+        road,
+        mask,
+      });
+    }
+  }
+  return cells;
+};
 
 export const FloorAndWalls = memo(function FloorAndWalls({
   showRemoteOffice = true,
