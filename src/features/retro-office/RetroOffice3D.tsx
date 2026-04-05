@@ -2710,21 +2710,20 @@ export function RetroOffice3D({
     [],
   );
   const cityScapeMode = true;
+  const cityCameraTarget = LOCAL_CAMERA_TARGET;
   const CAM_POS = useMemo<[number, number, number]>(() => {
-    if (cityScapeMode) return DISTRICT_CAMERA_POSITION;
+    const activeTarget = cityScapeMode ? cityCameraTarget : LOCAL_CAMERA_TARGET;
     return [
-      LOCAL_CAMERA_TARGET[0] +
+      activeTarget[0] +
         (DISTRICT_CAMERA_POSITION[0] - DISTRICT_CAMERA_TARGET[0]),
-      LOCAL_CAMERA_TARGET[1] +
+      activeTarget[1] +
         (DISTRICT_CAMERA_POSITION[1] - DISTRICT_CAMERA_TARGET[1]),
-      LOCAL_CAMERA_TARGET[2] +
+      activeTarget[2] +
         (DISTRICT_CAMERA_POSITION[2] - DISTRICT_CAMERA_TARGET[2]),
     ];
-  }, [LOCAL_CAMERA_TARGET, cityScapeMode]);
-  const cameraTarget = cityScapeMode
-    ? DISTRICT_CAMERA_TARGET
-    : LOCAL_CAMERA_TARGET;
-  const cameraZoom = cityScapeMode ? DISTRICT_CAMERA_ZOOM : 56;
+  }, [LOCAL_CAMERA_TARGET, cityCameraTarget, cityScapeMode]);
+  const cameraTarget = cityScapeMode ? cityCameraTarget : LOCAL_CAMERA_TARGET;
+  const cameraZoom = cityScapeMode ? 44 : 56;
   const overviewPreset = useMemo(
     () => ({ pos: CAM_POS, target: cameraTarget, zoom: cameraZoom }),
     [CAM_POS, cameraTarget, cameraZoom]
