@@ -4058,6 +4058,7 @@ export function OfficeScreen({
     connectPromptReady &&
     status === "disconnected" &&
     !agentsLoaded &&
+    !remoteOfficeEnabled &&
     (shouldPromptForConnect || didAttemptGatewayConnect)
   ) {
     return (
