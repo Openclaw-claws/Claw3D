@@ -2735,16 +2735,6 @@ export function RetroOffice3D({
   const handleReturnToCity = useCallback(() => {
     setSceneMode("city");
   }, []);
-  const canvasResetKey = useMemo(
-    () =>
-      [
-        cityScapeMode ? "remote" : "local",
-        gatewayStatus ?? "unknown",
-        String(agents.length),
-        String(officeCenterSignal),
-      ].join(":"),
-    [agents.length, cityScapeMode, gatewayStatus, officeCenterSignal],
-  );
   // New Idea 7: heatmap mode.
   const [heatmapMode, setHeatmapMode] = useState(false);
   const [trailMode, setTrailMode] = useState(false);
@@ -5385,7 +5375,6 @@ export function RetroOffice3D({
         */}
         {!immersiveOverlayActive ? (
           <Canvas
-            key={canvasResetKey}
             orthographic
             dpr={[0.85, 1.5]}
             camera={{
@@ -5466,22 +5455,25 @@ export function RetroOffice3D({
               color="#7090ff"
             />
 
-            {/* Floor + walls — always visible, no async loading. */}
-            <SceneFloorAndWalls
-              showRemoteOffice={cityScapeMode}
-              onEnterHeadquarters={handleEnterOfficeFromCity}
-            />
-
-            {/* Wall pictures — procedural, no async loading. */}
-            <SceneWallPictures showRemoteOffice={cityScapeMode} />
+            {/* Keep both worlds mounted; only toggle visibility to avoid renderer churn. */}
+            <group visible={cityScapeMode}>
+              <SceneFloorAndWalls
+                showRemoteOffice
+                onEnterHeadquarters={handleEnterOfficeFromCity}
+              />
+            </group>
+            <group visible={!cityScapeMode}>
+              <SceneFloorAndWalls showRemoteOffice={false} />
+              <SceneWallPictures showRemoteOffice={false} />
+            </group>
 
             {/* Environment lighting — async, wrapped in its own Suspense so floor stays visible. */}
             <Suspense fallback={null}>
               <Environment preset="city" />
             </Suspense>
 
-            {/* Furniture models — each loads its GLB asynchronously. */}
-            {!cityScapeMode ? (
+            {/* Furniture models — mounted persistently, hidden in city view. */}
+            <group visible={!cityScapeMode}>
               <Suspense fallback={null}>
                 {!editMode ? (
                   <PrimitiveInstancedWallSegmentsModel items={wallItems} />
@@ -5906,17 +5898,15 @@ export function RetroOffice3D({
                 ),
                 )}
               </Suspense>
-            ) : null}
 
-            {!cityScapeMode && remoteLayoutFurniture.length > 0 ? (
-              <ReadOnlyFurnitureClone furniture={remoteLayoutFurniture} />
-            ) : null}
+              {remoteLayoutFurniture.length > 0 ? (
+                <ReadOnlyFurnitureClone furniture={remoteLayoutFurniture} />
+              ) : null}
 
-            {/* Removed standalone Jukebox as it's now in the furniture loop */}
+              {/* Removed standalone Jukebox as it's now in the furniture loop */}
 
-            {/* Agents — purely imperative, driven by renderAgentsRef inside useFrame. */}
-            {!cityScapeMode
-              ? sceneAgents.map((agent) => {
+              {/* Agents — purely imperative, driven by renderAgentsRef inside useFrame. */}
+              {sceneAgents.map((agent) => {
                   const isJanitor = "role" in agent && agent.role === "janitor";
                   return (
                     <AgentObjectModel
@@ -5960,75 +5950,75 @@ export function RetroOffice3D({
                       }
                     />
                   );
-                })
-              : null}
+                })}
 
-            {!cityScapeMode ? <ScenePingPongBall agentsRef={renderAgentsRef} /> : null}
+              <ScenePingPongBall agentsRef={renderAgentsRef} />
 
-            {/* New Idea 5: Agent color trails while walking. */}
-            {!cityScapeMode && trailMode ? (
-              <AgentTrailSystem
-                agentsRef={renderAgentsRef}
-                colorMap={agentColorMap}
-              />
-            ) : null}
+              {/* New Idea 5: Agent color trails while walking. */}
+              {trailMode ? (
+                <AgentTrailSystem
+                  agentsRef={renderAgentsRef}
+                  colorMap={agentColorMap}
+                />
+              ) : null}
 
-            {/* New Idea 7: Heatmap overlay when heatmap mode is active. */}
-            {!cityScapeMode && heatmapMode ? (
-              <AgentHeatmapSystem
-                agentsRef={renderAgentsRef}
-                heatmapMode={heatmapMode}
-                heatGridRef={heatGridRef}
-              />
-            ) : null}
+              {/* New Idea 7: Heatmap overlay when heatmap mode is active. */}
+              {heatmapMode ? (
+                <AgentHeatmapSystem
+                  agentsRef={renderAgentsRef}
+                  heatmapMode={heatmapMode}
+                  heatGridRef={heatGridRef}
+                />
+              ) : null}
 
-            {/* Placement ghost. */}
-            {editMode &&
+              {/* Placement ghost. */}
+              {editMode &&
+                drag.kind === "placing" &&
+                drag.itemType !== "wall" &&
+                ghostPos && (
+                  <Suspense fallback={null}>
+                    <FurniturePlacementGhost
+                      itemType={drag.itemType}
+                      position={ghostPos}
+                    />
+                  </Suspense>
+                )}
+              {editMode &&
               drag.kind === "placing" &&
-              drag.itemType !== "wall" &&
-              ghostPos && (
-                <Suspense fallback={null}>
-                  <FurniturePlacementGhost
-                    itemType={drag.itemType}
-                    position={ghostPos}
-                  />
-                </Suspense>
-              )}
-            {editMode &&
-            drag.kind === "placing" &&
-            drag.itemType === "wall" &&
-            wallGhostItem ? (
-              <PrimitiveWallSegmentModel
-                item={wallGhostItem}
-                isSelected={false}
-                isHovered={false}
-                editMode={false}
-                onPointerDown={() => {}}
-                onPointerOver={() => {}}
-                onPointerOut={() => {}}
-              />
-            ) : null}
-            {editMode &&
-            drag.kind === "placing" &&
-            drag.itemType === "door" &&
-            ghostPos ? (
-              <PrimitiveDoorModel
-                item={{
-                  _uid: "__door_ghost__",
-                  type: "door",
-                  x: worldToCanvas(ghostPos[0], ghostPos[2]).cx,
-                  y: worldToCanvas(ghostPos[0], ghostPos[2]).cy,
-                  w: DOOR_LENGTH,
-                  h: DOOR_THICKNESS,
-                }}
-                isSelected={false}
-                isHovered={false}
-                editMode={false}
-                onPointerDown={() => {}}
-                onPointerOver={() => {}}
-                onPointerOut={() => {}}
-              />
-            ) : null}
+              drag.itemType === "wall" &&
+              wallGhostItem ? (
+                <PrimitiveWallSegmentModel
+                  item={wallGhostItem}
+                  isSelected={false}
+                  isHovered={false}
+                  editMode={false}
+                  onPointerDown={() => {}}
+                  onPointerOver={() => {}}
+                  onPointerOut={() => {}}
+                />
+              ) : null}
+              {editMode &&
+              drag.kind === "placing" &&
+              drag.itemType === "door" &&
+              ghostPos ? (
+                <PrimitiveDoorModel
+                  item={{
+                    _uid: "__door_ghost__",
+                    type: "door",
+                    x: worldToCanvas(ghostPos[0], ghostPos[2]).cx,
+                    y: worldToCanvas(ghostPos[0], ghostPos[2]).cy,
+                    w: DOOR_LENGTH,
+                    h: DOOR_THICKNESS,
+                  }}
+                  isSelected={false}
+                  isHovered={false}
+                  editMode={false}
+                  onPointerDown={() => {}}
+                  onPointerOver={() => {}}
+                  onPointerOut={() => {}}
+                />
+              ) : null}
+            </group>
 
             {/* Floor raycaster for edit-mode interaction. */}
             <SceneFloorRaycaster
@@ -7276,6 +7266,40 @@ export function RetroOffice3D({
           </div>
         </div>
       )}
+
+      {!readOnly && !immersiveOverlayActive && cityScapeMode ? (
+        <div className="absolute top-14 left-3 z-20 flex flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={handleEnterOfficeFromCity}
+            className="rounded-xl border border-emerald-400/30 bg-[#071b12]/92 px-4 py-2 text-left shadow-lg backdrop-blur-sm transition-colors hover:border-emerald-300/50 hover:bg-[#0b2418]"
+          >
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-emerald-300/80">
+              Headquarters
+            </div>
+            <div className="mt-1 text-sm font-semibold text-white">
+              Enter office
+            </div>
+          </button>
+        </div>
+      ) : null}
+
+      {!readOnly && !immersiveOverlayActive && !cityScapeMode ? (
+        <div className="absolute top-14 left-3 z-20 flex flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={handleReturnToCity}
+            className="rounded-xl border border-cyan-400/30 bg-[#09131b]/92 px-4 py-2 text-left shadow-lg backdrop-blur-sm transition-colors hover:border-cyan-300/50 hover:bg-[#0d1c26]"
+          >
+            <div className="font-mono text-[10px] uppercase tracking-[0.18em] text-cyan-300/80">
+              City View
+            </div>
+            <div className="mt-1 text-sm font-semibold text-white">
+              Back to City
+            </div>
+          </button>
+        </div>
+      ) : null}
 
       {/* Toolbar — top right. */}
       {!readOnly && !immersiveOverlayActive ? (
