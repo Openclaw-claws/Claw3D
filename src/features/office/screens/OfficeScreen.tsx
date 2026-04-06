@@ -1175,8 +1175,15 @@ export function OfficeScreen({
         setChatOpen(true);
       }
       dispatch({ type: "selectAgent", agentId });
+      // Keep per-floor cache in sync so handleSelectFloor can restore the last
+      // agent the user selected when they switch back to this floor.
+      setFloorRosterCache((prev) => {
+        const current = prev[activeFloorId];
+        if (!current || current.selectedAgentId === agentId) return prev;
+        return { ...prev, [activeFloorId]: { ...current, selectedAgentId: agentId } };
+      });
     },
-    [dispatch],
+    [activeFloorId, dispatch],
   );
   const handleSelectFloor = useCallback(
     (floorId: FloorId) => {
@@ -1416,6 +1423,32 @@ export function OfficeScreen({
       cancelled = true;
     };
   }, [gatewayUrl, loadStudioSettings]);
+
+  // Wire officeFloors persisted runtime state so the status / gateway fields
+  // actually reflect live connection transitions (not just stay at defaults).
+  useEffect(() => {
+    const key = gatewayUrl.trim();
+    if (!key) return;
+    const patch =
+      status === "connected"
+        ? {
+            status: "connected" as const,
+            gatewayUrl: key,
+            lastKnownGoodAt: Date.now(),
+            lastErrorCode: null,
+            lastErrorMessage: null,
+          }
+        : status === "connecting"
+        ? { status: "connecting" as const }
+        : gatewayError
+        ? {
+            status: "error" as const,
+            lastErrorCode: "GATEWAY_ERROR",
+            lastErrorMessage: gatewayError,
+          }
+        : { status: "disconnected" as const };
+    settingsCoordinator.schedulePatch({ officeFloors: { [activeFloorId]: patch } }, 0);
+  }, [activeFloorId, gatewayError, gatewayUrl, settingsCoordinator, status]);
 
   const loadAgents = useCallback(async (options?: {
     forceSettings?: boolean;
