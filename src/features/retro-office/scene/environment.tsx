@@ -1,5 +1,6 @@
 "use client";
 
+import { Billboard, Text } from "@react-three/drei";
 import { memo, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame } from "@react-three/fiber";
 import type * as THREE from "three";
@@ -592,6 +593,65 @@ function FactoryBlock({
   );
 }
 
+function LotCutawayBase({
+  position,
+  width,
+  depth,
+  tone = "grass",
+}: {
+  position: [number, number, number];
+  width: number;
+  depth: number;
+  tone?: "grass" | "shop" | "home";
+}) {
+  const surfaceColor =
+    tone === "shop" ? "#d7d1c0" : tone === "home" ? "#cdddb7" : "#9ec27e";
+  const borderColor =
+    tone === "shop" ? "#6b7280" : tone === "home" ? "#8d6e63" : "#5d4037";
+  return (
+    <group position={position}>
+      <mesh position={[0, -0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[width, depth]} />
+        <meshStandardMaterial color={surfaceColor} roughness={0.98} metalness={0.01} />
+      </mesh>
+      <mesh position={[0, 0.02, 0]} receiveShadow>
+        <boxGeometry args={[width + 0.08, 0.04, depth + 0.08]} />
+        <meshStandardMaterial color={borderColor} roughness={0.88} metalness={0.06} />
+      </mesh>
+    </group>
+  );
+}
+
+function BuildingBillboardLabel({
+  position,
+  text,
+  color = "#f8fafc",
+  background = "#111827",
+}: {
+  position: [number, number, number];
+  text: string;
+  color?: string;
+  background?: string;
+}) {
+  return (
+    <Billboard position={position} follow lockX={false} lockY={false} lockZ={false}>
+      <mesh position={[0, 0, -0.01]}>
+        <planeGeometry args={[1.7, 0.32]} />
+        <meshBasicMaterial color={background} transparent opacity={0.9} />
+      </mesh>
+      <Text
+        fontSize={0.14}
+        color={color}
+        anchorX="center"
+        anchorY="middle"
+        maxWidth={1.5}
+      >
+        {text}
+      </Text>
+    </Billboard>
+  );
+}
+
 function RoadTile({
   position,
   size,
@@ -657,10 +717,16 @@ function FullCityScene({
   centerX,
   centerZ,
   onEnterHeadquarters,
+  onEnterStore,
+  onEnterHouse,
+  activeSceneMode = "city",
 }: {
   centerX: number;
   centerZ: number;
   onEnterHeadquarters?: () => void;
+  onEnterStore?: () => void;
+  onEnterHouse?: () => void;
+  activeSceneMode?: "city" | "office" | "store" | "house";
 }) {
   const cityGrid = useMemo(() => buildCityGrid(), []);
   const [hqHovered, setHqHovered] = useState(false);
@@ -669,10 +735,22 @@ function FullCityScene({
   const cityWidth = CITY_GRID_COLUMNS * CITY_GRID_CELL_SIZE;
   const cityDepth = CITY_GRID_ROWS * CITY_GRID_CELL_SIZE;
   const hqPosition: [number, number, number] = [centerX, 0, centerZ + CITY_GRID_CELL_SIZE * 0.5];
+  const storeAnchor: [number, number, number] = [
+    baseOffsetX + 1 * CITY_GRID_CELL_SIZE,
+    0,
+    baseOffsetZ + 1 * CITY_GRID_CELL_SIZE,
+  ];
+  const houseAnchor: [number, number, number] = [
+    baseOffsetX + 8 * CITY_GRID_CELL_SIZE,
+    0,
+    baseOffsetZ + 6 * CITY_GRID_CELL_SIZE,
+  ];
   const trafficNorthZ = baseOffsetZ + 2 * CITY_GRID_CELL_SIZE;
   const trafficSouthZ = baseOffsetZ + 5 * CITY_GRID_CELL_SIZE;
   const trafficWestX = baseOffsetX + 2 * CITY_GRID_CELL_SIZE;
   const trafficEastX = baseOffsetX + 7 * CITY_GRID_CELL_SIZE;
+  const storeLotActive = activeSceneMode === "store";
+  const houseLotActive = activeSceneMode === "house";
   return (
     <group>
       <mesh position={[centerX, -0.02, centerZ]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -682,6 +760,8 @@ function FullCityScene({
       {cityGrid.map((cell) => {
         const x = baseOffsetX + cell.gx * CITY_GRID_CELL_SIZE;
         const z = baseOffsetZ + cell.gz * CITY_GRID_CELL_SIZE;
+        const isStoreLot = cell.gx === 1 && cell.gz === 1;
+        const isHouseLot = cell.gx === 8 && cell.gz === 6;
         if (cell.road) {
           return (
             <RoadTile
@@ -693,6 +773,34 @@ function FullCityScene({
           );
         }
         const lotPosition: [number, number, number] = [x, 0, z];
+        if (isStoreLot && storeLotActive) {
+          return (
+            <group key="full-city-store-cutaway" position={lotPosition}>
+              <LotCutawayBase
+                position={[0, 0, 0]}
+                width={CITY_GRID_CELL_SIZE * 0.96}
+                depth={CITY_GRID_CELL_SIZE * 0.96}
+                tone="shop"
+              />
+              <StreetTree position={[-0.34, 0, -0.28]} canopyColor="#4ea34a" />
+              <StreetTree position={[0.28, 0, 0.22]} canopyColor="#3f9142" />
+            </group>
+          );
+        }
+        if (isHouseLot && houseLotActive) {
+          return (
+            <group key="full-city-house-cutaway" position={lotPosition}>
+              <LotCutawayBase
+                position={[0, 0, 0]}
+                width={CITY_GRID_CELL_SIZE * 0.98}
+                depth={CITY_GRID_CELL_SIZE * 0.98}
+                tone="home"
+              />
+              <StreetTree position={[-0.28, 0, -0.26]} canopyColor="#4ea34a" />
+              <StreetTree position={[0.24, 0, 0.18]} canopyColor="#5aa05c" />
+            </group>
+          );
+        }
         if ((cell.gx + cell.gz) % 7 === 0) {
           return (
             <group key={`full-city-park-${cell.gx}-${cell.gz}`} position={lotPosition}>
@@ -724,16 +832,25 @@ function FullCityScene({
         if (cell.zone === "commercial") {
           const isTower = cell.gz <= 1 && cell.gx % 3 === 0;
           return isTower ? (
-            <TowerBlock
-              key={`full-city-com-tower-${cell.gx}-${cell.gz}`}
-              position={lotPosition}
-              width={0.84}
-              depth={0.84}
-              height={2.5 + (cell.gx % 2) * 0.9}
-              bodyColor="#e5e7eb"
-              accentColor="#9ca3af"
-              windowColor="#111827"
-            />
+            <group key={`full-city-com-tower-${cell.gx}-${cell.gz}`}>
+              <TowerBlock
+                position={lotPosition}
+                width={0.84}
+                depth={0.84}
+                height={2.5 + (cell.gx % 2) * 0.9}
+                bodyColor="#e5e7eb"
+                accentColor="#9ca3af"
+                windowColor="#111827"
+              />
+              {cell.gz === 0 && cell.gx === 6 ? (
+                <BuildingBillboardLabel
+                  position={[x, 3.7, z]}
+                  text="JIRA"
+                  color="#fde68a"
+                  background="#1f2937"
+                />
+              ) : null}
+            </group>
           ) : (
             <StorefrontBlock
               key={`full-city-com-store-${cell.gx}-${cell.gz}`}
@@ -762,72 +879,129 @@ function FullCityScene({
           />
         );
       })}
+      {activeSceneMode !== "office" ? (
+        <group
+          position={hqPosition}
+          onPointerOver={(event) => {
+            event.stopPropagation();
+            setHqHovered(true);
+          }}
+          onPointerOut={(event) => {
+            event.stopPropagation();
+            setHqHovered(false);
+          }}
+          onClick={(event) => {
+            event.stopPropagation();
+            onEnterHeadquarters?.();
+          }}
+        >
+          <mesh position={[0, 0.01, 0.18]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[3.2, 2.8]} />
+            <meshBasicMaterial
+              color={hqHovered ? "#fde68a" : "#bbf7d0"}
+              transparent
+              opacity={hqHovered ? 0.24 : 0.14}
+            />
+          </mesh>
+          <TowerBlock
+            position={[-0.52, 0, -0.26]}
+            width={0.9}
+            depth={0.9}
+            height={3.6}
+            bodyColor="#f3f4f6"
+            accentColor="#9ca3af"
+            windowColor="#0f172a"
+          />
+          <TowerBlock
+            position={[0.56, 0, 0.24]}
+            width={0.9}
+            depth={0.9}
+            height={3.1}
+            bodyColor="#f3f4f6"
+            accentColor="#9ca3af"
+            windowColor="#0f172a"
+          />
+          <StorefrontBlock
+            position={[0, 0, 0.92]}
+            width={1.3}
+            depth={0.78}
+            height={0.95}
+            bodyColor="#334155"
+            awningColor="#22c55e"
+            trimColor="#dcfce7"
+            windowColor="#bfdbfe"
+          />
+          <mesh position={[0, 0.02, -1.02]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[1.85, 0.34]} />
+            <meshBasicMaterial
+              color={hqHovered ? "#fef08a" : "#e0f2fe"}
+              transparent
+              opacity={0.92}
+            />
+          </mesh>
+          <mesh position={[0, 0.03, -1.02]}>
+            <planeGeometry args={[1.7, 0.18]} />
+            <meshBasicMaterial color="#0f172a" transparent opacity={0.98} />
+          </mesh>
+          <mesh position={[0, 0.04, -1.02]}>
+            <planeGeometry args={[1.58, 0.12]} />
+            <meshBasicMaterial
+              color={hqHovered ? "#fef08a" : "#f8fafc"}
+              transparent
+              opacity={1}
+            />
+          </mesh>
+        </group>
+      ) : (
+        <group position={hqPosition}>
+          <LotCutawayBase
+            position={[0, 0, 0.1]}
+            width={3.25}
+            depth={2.85}
+            tone="grass"
+          />
+          {[
+            [-1.42, 0, -1.12],
+            [1.46, 0, -1.14],
+            [-1.44, 0, 1.18],
+            [1.46, 0, 1.18],
+          ].map(([x, y, z], index) => (
+            <StreetTree
+              key={`hq-lot-tree-${index}`}
+              position={[x, y, z]}
+              canopyColor={index % 2 === 0 ? "#3f9142" : "#4ea34a"}
+            />
+          ))}
+          <BuildingBillboardLabel
+            position={[0, 0.55, -1.34]}
+            text="HEADQUARTERS"
+            color="#fef08a"
+            background="#0f172a"
+          />
+        </group>
+      )}
       <group
-        position={hqPosition}
-        onPointerOver={(event) => {
-          event.stopPropagation();
-          setHqHovered(true);
-        }}
-        onPointerOut={(event) => {
-          event.stopPropagation();
-          setHqHovered(false);
-        }}
+        position={storeAnchor}
         onClick={(event) => {
           event.stopPropagation();
-          onEnterHeadquarters?.();
+          onEnterStore?.();
         }}
       >
-        <mesh position={[0, 0.01, 0.18]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[3.2, 2.8]} />
-          <meshBasicMaterial
-            color={hqHovered ? "#fde68a" : "#bbf7d0"}
-            transparent
-            opacity={hqHovered ? 0.24 : 0.14}
-          />
+        <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[1.22, 1.02]} />
+          <meshBasicMaterial color="#fef3c7" transparent opacity={0.12} />
         </mesh>
-        <TowerBlock
-          position={[-0.52, 0, -0.26]}
-          width={0.9}
-          depth={0.9}
-          height={3.6}
-          bodyColor="#f3f4f6"
-          accentColor="#9ca3af"
-          windowColor="#0f172a"
-        />
-        <TowerBlock
-          position={[0.56, 0, 0.24]}
-          width={0.9}
-          depth={0.9}
-          height={3.1}
-          bodyColor="#f3f4f6"
-          accentColor="#9ca3af"
-          windowColor="#0f172a"
-        />
-        <StorefrontBlock
-          position={[0, 0, 0.92]}
-          width={1.3}
-          depth={0.78}
-          height={0.95}
-          bodyColor="#334155"
-          awningColor="#22c55e"
-          trimColor="#dcfce7"
-          windowColor="#bfdbfe"
-        />
-        <mesh position={[0, 0.02, -1.02]} rotation={[-Math.PI / 2, 0, 0]}>
-          <planeGeometry args={[1.85, 0.34]} />
-          <meshBasicMaterial
-            color={hqHovered ? "#fef08a" : "#e0f2fe"}
-            transparent
-            opacity={0.92}
-          />
-        </mesh>
-        <mesh position={[0, 0.03, -1.02]}>
-          <planeGeometry args={[1.7, 0.18]} />
-          <meshBasicMaterial color="#0f172a" transparent opacity={0.98} />
-        </mesh>
-        <mesh position={[0, 0.04, -1.02]}>
-          <planeGeometry args={[1.58, 0.12]} />
-          <meshBasicMaterial color={hqHovered ? "#fef08a" : "#f8fafc"} transparent opacity={1} />
+      </group>
+      <group
+        position={houseAnchor}
+        onClick={(event) => {
+          event.stopPropagation();
+          onEnterHouse?.();
+        }}
+      >
+        <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[1.12, 1.12]} />
+          <meshBasicMaterial color="#e9d5ff" transparent opacity={0.12} />
         </mesh>
       </group>
       <CityTrafficLayer
@@ -909,9 +1083,15 @@ const buildCityGrid = (): CityGridCell[] => {
 export const FloorAndWalls = memo(function FloorAndWalls({
   showRemoteOffice = true,
   onEnterHeadquarters,
+  activeSceneMode = "city",
+  onEnterStore,
+  onEnterHouse,
 }: {
   showRemoteOffice?: boolean;
   onEnterHeadquarters?: () => void;
+  activeSceneMode?: "city" | "office" | "store" | "house";
+  onEnterStore?: () => void;
+  onEnterHouse?: () => void;
 }) {
   const districtWidth = CANVAS_W * SCALE;
   const districtHeight = CANVAS_H * SCALE;
@@ -973,6 +1153,9 @@ export const FloorAndWalls = memo(function FloorAndWalls({
         centerX={localOfficeCenterX}
         centerZ={localOfficeCenterZ}
         onEnterHeadquarters={onEnterHeadquarters}
+        onEnterStore={onEnterStore}
+        onEnterHouse={onEnterHouse}
+        activeSceneMode={activeSceneMode}
       />
     );
   }
