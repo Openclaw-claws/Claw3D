@@ -155,6 +155,7 @@ import { useOfficeSkillTriggers } from "@/features/office/hooks/useOfficeSkillTr
 import { useRemoteOfficePresence } from "@/features/office/hooks/useRemoteOfficePresence";
 import { useRemoteOfficeLayout } from "@/features/office/hooks/useRemoteOfficeLayout";
 import { useOfficeSkillsMarketplace } from "@/features/office/hooks/useOfficeSkillsMarketplace";
+import { useOfficeFloorRuntimePersistence } from "@/features/office/hooks/useOfficeFloorRuntimePersistence";
 import { useOfficeStandupController } from "@/features/office/hooks/useOfficeStandupController";
 import { useRunLog } from "@/features/office/hooks/useRunLog";
 import { useTaskBoardController } from "@/features/office/tasks/useTaskBoardController";
@@ -1424,31 +1425,16 @@ export function OfficeScreen({
     };
   }, [gatewayUrl, loadStudioSettings]);
 
-  // Wire officeFloors persisted runtime state so the status / gateway fields
-  // actually reflect live connection transitions (not just stay at defaults).
-  useEffect(() => {
-    const key = gatewayUrl.trim();
-    if (!key) return;
-    const patch =
-      status === "connected"
-        ? {
-            status: "connected" as const,
-            gatewayUrl: key,
-            lastKnownGoodAt: Date.now(),
-            lastErrorCode: null,
-            lastErrorMessage: null,
-          }
-        : status === "connecting"
-        ? { status: "connecting" as const }
-        : gatewayError
-        ? {
-            status: "error" as const,
-            lastErrorCode: "GATEWAY_ERROR",
-            lastErrorMessage: gatewayError,
-          }
-        : { status: "disconnected" as const };
-    settingsCoordinator.schedulePatch({ officeFloors: { [activeFloorId]: patch } }, 0);
-  }, [activeFloorId, gatewayError, gatewayUrl, settingsCoordinator, status]);
+  // Persist live gateway connection transitions into officeFloors settings,
+  // always attributed to the floor that owns the gateway URL — not whichever
+  // floor happens to be active when a status update fires.
+  useOfficeFloorRuntimePersistence({
+    activeFloorId,
+    gatewayUrl,
+    status,
+    gatewayError,
+    settingsCoordinator,
+  });
 
   const loadAgents = useCallback(async (options?: {
     forceSettings?: boolean;
