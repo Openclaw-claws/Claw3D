@@ -4,11 +4,11 @@ import {
   buildCustomRuntimeWarnings,
   buildDoctorJsonReport,
   buildGatewayFailureActions,
-  classifyGatewayFailure,
-  buildProfileWarnings,
-  buildOpenClawWarnings,
-  DOCTOR_STATUSES,
   buildGatewayWarnings,
+  buildOpenClawWarnings,
+  buildProfileWarnings,
+  classifyGatewayFailure,
+  DOCTOR_STATUSES,
   formatDoctorReport,
   parseDoctorArgs,
   resolveRuntimeContext,
@@ -46,7 +46,10 @@ describe("claw3doctor core", () => {
       gatewayUrl: "ws://localhost:18790",
       tokenConfigured: false,
     });
-    const profiles = runtime.profiles as Record<string, { url: string; token: string }>;
+    const profiles = runtime.profiles as Record<
+      string,
+      { url: string; token: string }
+    >;
     expect(profiles.openclaw?.url).toBe("ws://localhost:18789");
   });
 
@@ -127,9 +130,7 @@ describe("claw3doctor core", () => {
         },
       }),
     ).toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("same endpoint"),
-      ]),
+      expect.arrayContaining([expect.stringContaining("same endpoint")]),
     );
   });
 
@@ -137,7 +138,8 @@ describe("claw3doctor core", () => {
     expect(
       buildGatewayFailureActions({
         adapterType: "openclaw",
-        message: "Unexpected HTTP 401 during WebSocket upgrade. pairing required 1008",
+        message:
+          "Unexpected HTTP 401 during WebSocket upgrade. pairing required 1008",
         gatewayUrl: "wss://demo.tailnet.ts.net/gateway",
       }),
     ).toEqual(
@@ -231,7 +233,13 @@ describe("claw3doctor core", () => {
         stateDir: "C:/tmp/.openclaw",
         settingsPath: "C:/tmp/.openclaw/claw3d/settings.json",
       },
-      checks: [{ status: DOCTOR_STATUSES.warn, label: "Gateway token", message: "Missing." }],
+      checks: [
+        {
+          status: DOCTOR_STATUSES.warn,
+          label: "Gateway token",
+          message: "Missing.",
+        },
+      ],
     });
 
     expect(report).toMatchObject({
@@ -281,7 +289,11 @@ describe("claw3doctor core", () => {
 
 describe("parseDoctorArgs", () => {
   it("returns defaults when no flags are supplied", () => {
-    expect(parseDoctorArgs([])).toEqual({ json: false, allProfiles: false, profile: null });
+    expect(parseDoctorArgs([])).toEqual({
+      json: false,
+      allProfiles: false,
+      profile: null,
+    });
   });
 
   it("sets json flag", () => {
@@ -289,11 +301,17 @@ describe("parseDoctorArgs", () => {
   });
 
   it("sets allProfiles flag", () => {
-    expect(parseDoctorArgs(["--all-profiles"])).toMatchObject({ allProfiles: true, profile: null });
+    expect(parseDoctorArgs(["--all-profiles"])).toMatchObject({
+      allProfiles: true,
+      profile: null,
+    });
   });
 
   it("sets profile to lower-cased value", () => {
-    expect(parseDoctorArgs(["--profile", "Hermes"])).toMatchObject({ profile: "hermes", allProfiles: false });
+    expect(parseDoctorArgs(["--profile", "Hermes"])).toMatchObject({
+      profile: "hermes",
+      allProfiles: false,
+    });
   });
 
   it("ignores --profile flag when no value follows", () => {
@@ -328,7 +346,10 @@ describe("adapterInScope scoping semantics", () => {
   });
 
   it("--profile hermes: only hermes is in scope", () => {
-    const inScope = makeAdapterInScope({ allProfiles: false, profile: "hermes" });
+    const inScope = makeAdapterInScope({
+      allProfiles: false,
+      profile: "hermes",
+    });
     expect(inScope("hermes", false)).toBe(true);
     expect(inScope("openclaw", true)).toBe(false); // openclaw would default to true but is suppressed
     expect(inScope("demo", true)).toBe(false);
@@ -336,7 +357,10 @@ describe("adapterInScope scoping semantics", () => {
   });
 
   it("--profile openclaw: only openclaw is in scope", () => {
-    const inScope = makeAdapterInScope({ allProfiles: false, profile: "openclaw" });
+    const inScope = makeAdapterInScope({
+      allProfiles: false,
+      profile: "openclaw",
+    });
     expect(inScope("openclaw", false)).toBe(true);
     expect(inScope("hermes", true)).toBe(false);
   });

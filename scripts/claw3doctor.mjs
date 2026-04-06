@@ -1,18 +1,18 @@
-import fs from "node:fs";
-import path from "node:path";
-import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import { createRequire } from "node:module";
+import path from "node:path";
 
 import { WebSocket } from "ws";
 import {
   buildCustomRuntimeWarnings,
   buildDoctorJsonReport,
   buildGatewayFailureActions,
-  classifyGatewayFailure,
-  buildProfileWarnings,
-  DOCTOR_STATUSES,
   buildGatewayWarnings,
   buildOpenClawWarnings,
+  buildProfileWarnings,
+  classifyGatewayFailure,
+  DOCTOR_STATUSES,
   formatDoctorReport,
   parseDoctorArgs,
   resolveRuntimeContext,
@@ -68,10 +68,16 @@ const readJsonFile = (filePath) => {
 
 const formatErrorMessage = (error, fallback) => {
   if (!(error instanceof Error)) return fallback;
-  if (error.name === "AggregateError" && Array.isArray(error.errors) && error.errors.length > 0) {
+  if (
+    error.name === "AggregateError" &&
+    Array.isArray(error.errors) &&
+    error.errors.length > 0
+  ) {
     const details = error.errors
       .map((entry) =>
-        entry instanceof Error ? entry.message || entry.name : String(entry ?? "").trim(),
+        entry instanceof Error
+          ? entry.message || entry.name
+          : String(entry ?? "").trim(),
       )
       .filter(Boolean);
     if (details.length > 0) {
@@ -124,7 +130,9 @@ const probeWebSocket = async (url, timeoutMs = 3500) =>
       () => finish({ ok: false, message: `Timed out after ${timeoutMs}ms.` }),
       timeoutMs + 250,
     );
-    socket.once("open", () => finish({ ok: true, message: "WebSocket handshake succeeded." }));
+    socket.once("open", () =>
+      finish({ ok: true, message: "WebSocket handshake succeeded." }),
+    );
     socket.once("error", (error) =>
       finish({
         ok: false,
@@ -170,7 +178,9 @@ const detectOpenClawVersion = () => {
       timeout: 4000,
     }).trim();
   } catch (error) {
-    return error instanceof Error ? error.message : "Unable to run openclaw --version";
+    return error instanceof Error
+      ? error.message
+      : "Unable to run openclaw --version";
   }
 };
 
@@ -181,11 +191,12 @@ const detectWorkspaceState = () => {
       stdio: ["ignore", "pipe", "ignore"],
       timeout: 3000,
     }).trim();
-    const dirty = execFileSync("git", ["status", "--porcelain"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-      timeout: 3000,
-    }).trim().length > 0;
+    const dirty =
+      execFileSync("git", ["status", "--porcelain"], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+        timeout: 3000,
+      }).trim().length > 0;
     return { branch, dirty, available: true };
   } catch {
     return { branch: "", dirty: false, available: false };
@@ -193,7 +204,9 @@ const detectWorkspaceState = () => {
 };
 
 const detectHermesModelHealth = async () => {
-  const apiUrl = (trim(process.env.HERMES_API_URL) || "http://localhost:8642").replace(/\/$/, "");
+  const apiUrl = (
+    trim(process.env.HERMES_API_URL) || "http://localhost:8642"
+  ).replace(/\/$/, "");
   const apiKey = trim(process.env.HERMES_API_KEY);
   const model = trim(process.env.HERMES_MODEL) || "hermes";
   const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
@@ -210,12 +223,18 @@ const probeCustomRuntimeHealth = async (runtimeUrl) => {
   const baseUrl = runtimeUrl.replace(/\/$/, "");
   const health = await probeHttpJson({ url: `${baseUrl}/health` });
   if (health.ok) {
-    return { ok: true, message: "Custom runtime /health responded successfully." };
+    return {
+      ok: true,
+      message: "Custom runtime /health responded successfully.",
+    };
   }
 
   const registry = await probeHttpJson({ url: `${baseUrl}/registry` });
   if (registry.ok) {
-    return { ok: true, message: "Custom runtime /registry responded successfully." };
+    return {
+      ok: true,
+      message: "Custom runtime /registry responded successfully.",
+    };
   }
 
   return {
@@ -281,8 +300,16 @@ async function main() {
             "Git branch",
             `${workspace.branch} (working tree has local modifications)`,
           )
-        : checkPass("Workspace", "Git branch", `${workspace.branch} (clean working tree)`)
-      : checkWarn("Workspace", "Git branch", "Git branch could not be detected from this working directory."),
+        : checkPass(
+            "Workspace",
+            "Git branch",
+            `${workspace.branch} (clean working tree)`,
+          )
+      : checkWarn(
+          "Workspace",
+          "Git branch",
+          "Git branch could not be detected from this working directory.",
+        ),
   );
 
   checks.push(
@@ -292,23 +319,37 @@ async function main() {
           "Runtime profile",
           `${runtimeContext.adapterType} selected at ${runtimeContext.gatewayUrl}`,
         )
-      : checkFail("Runtime profiles", "Runtime profile", "No runtime profile / gateway URL is configured.", [
-          "Set the gateway URL in Claw3D connect/settings before retrying.",
-        ]),
+      : checkFail(
+          "Runtime profiles",
+          "Runtime profile",
+          "No runtime profile / gateway URL is configured.",
+          ["Set the gateway URL in Claw3D connect/settings before retrying."],
+        ),
   );
 
   checks.push(
     runtimeContext.tokenConfigured
-      ? checkPass("Runtime profiles", "Gateway token", "A gateway token is configured for the selected profile.")
-      : checkWarn("Runtime profiles", "Gateway token", "No gateway token is configured for the selected profile.", [
-          "If this backend requires token auth, set the upstream token in Claw3D settings or openclaw.json.",
-        ]),
+      ? checkPass(
+          "Runtime profiles",
+          "Gateway token",
+          "A gateway token is configured for the selected profile.",
+        )
+      : checkWarn(
+          "Runtime profiles",
+          "Gateway token",
+          "No gateway token is configured for the selected profile.",
+          [
+            "If this backend requires token auth, set the upstream token in Claw3D settings or openclaw.json.",
+          ],
+        ),
   );
 
   for (const warning of buildProfileWarnings({ runtimeContext })) {
-    checks.push(checkWarn("Runtime profiles", "Profile collision", warning, [
-      "Assign distinct local ports or URLs if you want OpenClaw, Hermes, and demo running simultaneously instead of swapping one backend onto the same endpoint.",
-    ]));
+    checks.push(
+      checkWarn("Runtime profiles", "Profile collision", warning, [
+        "Assign distinct local ports or URLs if you want OpenClaw, Hermes, and demo running simultaneously instead of swapping one backend onto the same endpoint.",
+      ]),
+    );
   }
 
   if (args.profile) {
@@ -324,7 +365,9 @@ async function main() {
             "Runtime profiles",
             "Profile selection",
             `Requested profile "${args.profile}" is not configured in current Studio settings.`,
-            ["Run `node scripts/claw3doctor.mjs --all-profiles` to see the configured profile list."],
+            [
+              "Run `node scripts/claw3doctor.mjs --all-profiles` to see the configured profile list.",
+            ],
           ),
     );
   } else if (args.allProfiles) {
@@ -358,27 +401,32 @@ async function main() {
       gatewayUrl: runtimeContext.gatewayUrl,
       tokenConfigured: runtimeContext.tokenConfigured,
     })) {
-      checks.push(checkWarn("OpenClaw", "OpenClaw hints", warning, [
-        "If the browser/device is not yet approved, check `openclaw devices list` and approve the pending device before retrying the remote connection.",
-      ]));
+      checks.push(
+        checkWarn("OpenClaw", "OpenClaw hints", warning, [
+          "If the browser/device is not yet approved, check `openclaw devices list` and approve the pending device before retrying the remote connection.",
+        ]),
+      );
     }
   }
 
   if (adapterInScope("custom", shouldRunCustomChecks({ runtimeContext }))) {
     for (const warning of buildCustomRuntimeWarnings({
       gatewayUrl: runtimeContext.gatewayUrl,
-      allowlist: trim(env.CUSTOM_RUNTIME_ALLOWLIST) || trim(env.UPSTREAM_ALLOWLIST),
+      allowlist:
+        trim(env.CUSTOM_RUNTIME_ALLOWLIST) || trim(env.UPSTREAM_ALLOWLIST),
       nodeEnv: trim(env.NODE_ENV),
     })) {
       checks.push(checkWarn("Custom runtime", "Custom runtime hints", warning));
     }
   }
 
-  const profileEntries = Object.entries(runtimeContext.profiles ?? {}).filter(([adapterType]) => {
-    if (args.allProfiles) return true;
-    if (args.profile) return adapterType === args.profile;
-    return adapterType === runtimeContext.adapterType;
-  });
+  const profileEntries = Object.entries(runtimeContext.profiles ?? {}).filter(
+    ([adapterType]) => {
+      if (args.allProfiles) return true;
+      if (args.profile) return adapterType === args.profile;
+      return adapterType === runtimeContext.adapterType;
+    },
+  );
   for (const [adapterTypeRaw, profile] of profileEntries) {
     const adapterType = adapterTypeRaw;
     const url = trim(profile?.url);
@@ -402,7 +450,9 @@ async function main() {
                 ? [
                     "If this runtime sits behind the Studio custom proxy, verify CUSTOM_RUNTIME_ALLOWLIST / UPSTREAM_ALLOWLIST for the target host.",
                   ]
-                : ["Verify the configured gateway URL is correct and the backend is listening."],
+                : [
+                    "Verify the configured gateway URL is correct and the backend is listening.",
+                  ],
             ),
           ),
     );
@@ -423,10 +473,19 @@ async function main() {
   if (shouldRunOpenClawChecks({ runtimeContext, openclawConfigExists })) {
     checks.push(
       openclawConfigExists
-        ? checkPass("OpenClaw", "OpenClaw config", `Found ${openclawConfigPath}.`)
-        : checkWarn("OpenClaw", "OpenClaw config", `No openclaw.json found at ${openclawConfigPath}.`, [
-            "If you expect a local OpenClaw default, verify OPENCLAW_STATE_DIR or create openclaw.json.",
-          ]),
+        ? checkPass(
+            "OpenClaw",
+            "OpenClaw config",
+            `Found ${openclawConfigPath}.`,
+          )
+        : checkWarn(
+            "OpenClaw",
+            "OpenClaw config",
+            `No openclaw.json found at ${openclawConfigPath}.`,
+            [
+              "If you expect a local OpenClaw default, verify OPENCLAW_STATE_DIR or create openclaw.json.",
+            ],
+          ),
     );
 
     const version = detectOpenClawVersion();
@@ -447,12 +506,16 @@ async function main() {
         "Demo gateway",
         "Demo gateway config",
         `Demo mode expects the mock gateway on ws://localhost:${configuredPort}.`,
-        ["Run `npm run demo-gateway` if you want a no-runtime office smoke test."],
+        [
+          "Run `npm run demo-gateway` if you want a no-runtime office smoke test.",
+        ],
       ),
     );
   }
 
-  if (adapterInScope("hermes", shouldRunHermesChecks({ runtimeContext, env }))) {
+  if (
+    adapterInScope("hermes", shouldRunHermesChecks({ runtimeContext, env }))
+  ) {
     const hermes = await detectHermesModelHealth();
     checks.push(
       checkPass(
@@ -479,9 +542,14 @@ async function main() {
       );
       if (models.length > 0 && !models.includes(hermes.model)) {
         checks.push(
-          checkWarn("Hermes", "Hermes model", `Configured model "${hermes.model}" was not returned by /v1/models.`, [
-            "Set HERMES_MODEL to one of the reported model ids or update the Hermes API configuration.",
-          ]),
+          checkWarn(
+            "Hermes",
+            "Hermes model",
+            `Configured model "${hermes.model}" was not returned by /v1/models.`,
+            [
+              "Set HERMES_MODEL to one of the reported model ids or update the Hermes API configuration.",
+            ],
+          ),
         );
       }
     } else if (hermes.probe.status === 401) {
@@ -492,9 +560,14 @@ async function main() {
       );
     } else {
       checks.push(
-        checkFail("Hermes", "Hermes API", hermes.probe.text || "Hermes API probe failed.", [
-          "Start the Hermes API server and verify /v1/models responds before starting the adapter.",
-        ]),
+        checkFail(
+          "Hermes",
+          "Hermes API",
+          hermes.probe.text || "Hermes API probe failed.",
+          [
+            "Start the Hermes API server and verify /v1/models responds before starting the adapter.",
+          ],
+        ),
       );
     }
   }

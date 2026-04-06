@@ -5,7 +5,8 @@ export const DOCTOR_STATUSES = {
 };
 
 const VALID_ADAPTER_TYPES = new Set(["openclaw", "hermes", "demo", "custom"]);
-const TUNNEL_HOST_PATTERN = /(cloudflare|trycloudflare|ngrok|tailscale|ts\.net|tunnel)/i;
+const TUNNEL_HOST_PATTERN =
+  /(cloudflare|trycloudflare|ngrok|tailscale|ts\.net|tunnel)/i;
 const DEFAULT_GATEWAY_URL_BY_ADAPTER = {
   openclaw: "ws://localhost:18789",
   hermes: "ws://localhost:18789",
@@ -13,11 +14,14 @@ const DEFAULT_GATEWAY_URL_BY_ADAPTER = {
   custom: "http://localhost:7770",
 };
 
-const isRecord = (value) => Boolean(value && typeof value === "object" && !Array.isArray(value));
+const isRecord = (value) =>
+  Boolean(value && typeof value === "object" && !Array.isArray(value));
 
 const trimString = (value) => (typeof value === "string" ? value.trim() : "");
-const supportsAnsi = () => Boolean(process.stdout?.isTTY && process.env.NO_COLOR !== "1");
-const colorize = (text, code) => (supportsAnsi() ? `\u001b[${code}m${text}\u001b[0m` : text);
+const supportsAnsi = () =>
+  Boolean(process.stdout?.isTTY && process.env.NO_COLOR !== "1");
+const colorize = (text, code) =>
+  supportsAnsi() ? `\u001b[${code}m${text}\u001b[0m` : text;
 const formatStatusBadge = (status) => {
   switch (status) {
     case DOCTOR_STATUSES.pass:
@@ -36,10 +40,16 @@ export const normalizeAdapterType = (value, fallback = "openclaw") => {
   return VALID_ADAPTER_TYPES.has(normalized) ? normalized : fallback;
 };
 
-export const resolveRuntimeContext = ({ settings, upstreamGateway, env = process.env }) => {
+export const resolveRuntimeContext = ({
+  settings,
+  upstreamGateway,
+  env = process.env,
+}) => {
   const gateway = isRecord(settings?.gateway) ? settings.gateway : null;
   const adapterType = normalizeAdapterType(
-    gateway?.adapterType ?? upstreamGateway?.adapterType ?? env.CLAW3D_GATEWAY_ADAPTER_TYPE,
+    gateway?.adapterType ??
+      upstreamGateway?.adapterType ??
+      env.CLAW3D_GATEWAY_ADAPTER_TYPE,
     "openclaw",
   );
   const rawProfiles = isRecord(gateway?.profiles) ? gateway.profiles : null;
@@ -80,7 +90,11 @@ export const resolveRuntimeContext = ({ settings, upstreamGateway, env = process
   };
 };
 
-export const buildGatewayWarnings = ({ gatewayUrl, studioAccessToken = "", host = "" }) => {
+export const buildGatewayWarnings = ({
+  gatewayUrl,
+  studioAccessToken = "",
+  host = "",
+}) => {
   const warnings = [];
   const url = trimString(gatewayUrl);
   if (!url) {
@@ -136,7 +150,9 @@ export const buildGatewayWarnings = ({ gatewayUrl, studioAccessToken = "", host 
 export const buildProfileWarnings = ({ runtimeContext }) => {
   const warnings = [];
   const urlToAdapters = new Map();
-  for (const [adapterType, profile] of Object.entries(runtimeContext?.profiles ?? {})) {
+  for (const [adapterType, profile] of Object.entries(
+    runtimeContext?.profiles ?? {},
+  )) {
     const url = trimString(profile?.url);
     if (!url) continue;
     const key = url.toLowerCase();
@@ -155,7 +171,10 @@ export const buildProfileWarnings = ({ runtimeContext }) => {
   return warnings;
 };
 
-export const buildOpenClawWarnings = ({ gatewayUrl, tokenConfigured = false }) => {
+export const buildOpenClawWarnings = ({
+  gatewayUrl,
+  tokenConfigured = false,
+}) => {
   const warnings = [];
   const url = trimString(gatewayUrl);
   if (!url) return warnings;
@@ -231,7 +250,11 @@ export const buildCustomRuntimeWarnings = ({
   return warnings;
 };
 
-export const buildGatewayFailureActions = ({ adapterType, message = "", gatewayUrl = "" }) => {
+export const buildGatewayFailureActions = ({
+  adapterType,
+  message = "",
+  gatewayUrl = "",
+}) => {
   const actions = [];
   const normalized = trimString(message).toLowerCase();
   const url = trimString(gatewayUrl);
@@ -240,44 +263,73 @@ export const buildGatewayFailureActions = ({ adapterType, message = "", gatewayU
     parsedUrl = url ? new URL(url) : null;
   } catch {}
   const hostname = parsedUrl?.hostname?.toLowerCase() ?? "";
-  const isTunnelBacked = Boolean(hostname && TUNNEL_HOST_PATTERN.test(hostname));
+  const isTunnelBacked = Boolean(
+    hostname && TUNNEL_HOST_PATTERN.test(hostname),
+  );
   const isCloudflare = hostname.includes("cloudflare");
-  const isTailscale = hostname.includes("tailscale") || hostname.endsWith("ts.net");
+  const isTailscale =
+    hostname.includes("tailscale") || hostname.endsWith("ts.net");
 
   if (normalized.includes("econnrefused") || normalized.includes("timed out")) {
-    actions.push("Verify the backend is actually listening on the configured host and port before retrying from Claw3D.");
+    actions.push(
+      "Verify the backend is actually listening on the configured host and port before retrying from Claw3D.",
+    );
   }
 
   if (normalized.includes("1011")) {
-    actions.push("If this is OpenClaw behind a reverse proxy or tunnel, verify websocket upgrade handling and compare direct local/LAN behavior before assuming the runtime itself is broken.");
+    actions.push(
+      "If this is OpenClaw behind a reverse proxy or tunnel, verify websocket upgrade handling and compare direct local/LAN behavior before assuming the runtime itself is broken.",
+    );
   }
 
   if (normalized.includes("1012")) {
-    actions.push("A 1012-style close usually means the upstream is restarting or unavailable temporarily. Retry after checking the backend service logs.");
+    actions.push(
+      "A 1012-style close usually means the upstream is restarting or unavailable temporarily. Retry after checking the backend service logs.",
+    );
   }
 
-  if (normalized.includes("1008") || normalized.includes("pairing required") || normalized.includes("approve")) {
-    actions.push("For OpenClaw, check pending device/browser approval with `openclaw devices list` and approve the request before retrying the remote browser session.");
+  if (
+    normalized.includes("1008") ||
+    normalized.includes("pairing required") ||
+    normalized.includes("approve")
+  ) {
+    actions.push(
+      "For OpenClaw, check pending device/browser approval with `openclaw devices list` and approve the request before retrying the remote browser session.",
+    );
   }
 
-  if (normalized.includes("401") || normalized.includes("403") || normalized.includes("unexpected http 401")) {
-    actions.push("Recheck the configured token/auth path. The gateway or proxy is rejecting the connection before the office can load.");
+  if (
+    normalized.includes("401") ||
+    normalized.includes("403") ||
+    normalized.includes("unexpected http 401")
+  ) {
+    actions.push(
+      "Recheck the configured token/auth path. The gateway or proxy is rejecting the connection before the office can load.",
+    );
   }
 
   if (isCloudflare) {
-    actions.push("For Cloudflare or similar HTTPS tunnels, verify websocket upgrade forwarding and prefer an HTTPS-backed Studio path rather than a bare ws:// remote endpoint.");
+    actions.push(
+      "For Cloudflare or similar HTTPS tunnels, verify websocket upgrade forwarding and prefer an HTTPS-backed Studio path rather than a bare ws:// remote endpoint.",
+    );
   }
 
   if (isTailscale) {
-    actions.push("For Tailnet-hosted OpenClaw, test the same gateway directly on local/LAN first, then compare against the Tailnet URL so pairing/proxy issues do not get conflated.");
+    actions.push(
+      "For Tailnet-hosted OpenClaw, test the same gateway directly on local/LAN first, then compare against the Tailnet URL so pairing/proxy issues do not get conflated.",
+    );
   }
 
   if (isTunnelBacked) {
-    actions.push("Because this endpoint looks tunnel-backed, reproduce once via direct local or LAN access to separate runtime problems from tunnel/proxy problems.");
+    actions.push(
+      "Because this endpoint looks tunnel-backed, reproduce once via direct local or LAN access to separate runtime problems from tunnel/proxy problems.",
+    );
   }
 
   if (adapterType === "custom") {
-    actions.push("Custom runtimes should answer over HTTP on /health or /registry, not just a raw websocket endpoint.");
+    actions.push(
+      "Custom runtimes should answer over HTTP on /health or /registry, not just a raw websocket endpoint.",
+    );
   }
 
   return [...new Set(actions)];
@@ -363,21 +415,35 @@ export const summarizeChecks = (checks) => {
 
 export const shouldRunHermesChecks = ({ runtimeContext, env = process.env }) =>
   runtimeContext.adapterType === "hermes" ||
-  Boolean(trimString(env.HERMES_API_URL) || trimString(env.HERMES_ADAPTER_PORT));
+  Boolean(
+    trimString(env.HERMES_API_URL) || trimString(env.HERMES_ADAPTER_PORT),
+  );
 
-export const shouldRunOpenClawChecks = ({ runtimeContext, openclawConfigExists = false }) =>
-  runtimeContext.adapterType === "openclaw" || openclawConfigExists;
+export const shouldRunOpenClawChecks = ({
+  runtimeContext,
+  openclawConfigExists = false,
+}) => runtimeContext.adapterType === "openclaw" || openclawConfigExists;
 
 export const shouldRunDemoChecks = ({ runtimeContext, env = process.env }) =>
-  runtimeContext.adapterType === "demo" || Boolean(trimString(env.DEMO_ADAPTER_PORT));
+  runtimeContext.adapterType === "demo" ||
+  Boolean(trimString(env.DEMO_ADAPTER_PORT));
 
-export const shouldRunCustomChecks = ({ runtimeContext }) => runtimeContext.adapterType === "custom";
+export const shouldRunCustomChecks = ({ runtimeContext }) =>
+  runtimeContext.adapterType === "custom";
 
-export const formatDoctorReport = ({ summary, runtimeContext, paths, checks }) => {
+export const formatDoctorReport = ({
+  summary,
+  runtimeContext,
+  paths,
+  checks,
+}) => {
   const summaryCounts = {
-    pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass).length,
-    warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn).length,
-    fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail).length,
+    pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass)
+      .length,
+    warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn)
+      .length,
+    fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail)
+      .length,
   };
   const groupedChecks = new Map();
   for (const check of checks) {
@@ -392,8 +458,12 @@ export const formatDoctorReport = ({ summary, runtimeContext, paths, checks }) =
   lines.push("==================================================");
   lines.push("");
   lines.push(`Runtime provider: ${runtimeContext.adapterType}`);
-  lines.push(`Selected profile: ${runtimeContext.gatewayUrl || "(not configured)"}`);
-  lines.push(`Gateway token: ${runtimeContext.tokenConfigured ? "configured" : "missing"}`);
+  lines.push(
+    `Selected profile: ${runtimeContext.gatewayUrl || "(not configured)"}`,
+  );
+  lines.push(
+    `Gateway token: ${runtimeContext.tokenConfigured ? "configured" : "missing"}`,
+  );
   lines.push(`State dir: ${paths.stateDir}`);
   lines.push(`Studio settings: ${paths.settingsPath}`);
   const configuredProfiles = Object.entries(runtimeContext.profiles ?? {});
@@ -411,7 +481,9 @@ export const formatDoctorReport = ({ summary, runtimeContext, paths, checks }) =
     lines.push(`${category}`);
     lines.push("-".repeat(category.length));
     for (const check of categoryChecks) {
-      lines.push(`  ${formatStatusBadge(check.status)} ${check.label}: ${check.message}`);
+      lines.push(
+        `  ${formatStatusBadge(check.status)} ${check.label}: ${check.message}`,
+      );
     }
     lines.push("");
   }
@@ -425,16 +497,24 @@ export const formatDoctorReport = ({ summary, runtimeContext, paths, checks }) =
   return lines.join("\n");
 };
 
-export const buildDoctorJsonReport = ({ summary, runtimeContext, paths, checks }) => ({
+export const buildDoctorJsonReport = ({
+  summary,
+  runtimeContext,
+  paths,
+  checks,
+}) => ({
   doctor: "claw3doctor",
   summary,
   runtimeContext,
   paths,
   checks,
   counts: {
-    pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass).length,
-    warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn).length,
-    fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail).length,
+    pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass)
+      .length,
+    warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn)
+      .length,
+    fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail)
+      .length,
   },
 });
 
