@@ -3,7 +3,7 @@ name: Docker Publish
 on:
   push:
     branches:
-      - main
+      - "**"
     tags:
       - "v*"
   workflow_dispatch:
@@ -38,16 +38,16 @@ jobs:
         run: |
           set -euo pipefail
           tags=()
+          ref_name="$(printf '%s' "${GITHUB_REF_NAME}" | tr '[:upper:]' '[:lower:]' | tr '/_' '-' | tr -cd 'a-z0-9.-')"
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             tags+=("${IMAGE_NAME}:main")
+          elif [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+            tags+=("${IMAGE_NAME}:${ref_name}")
           fi
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             version="${GITHUB_REF#refs/tags/v}"
             tags+=("${IMAGE_NAME}:${version}")
             tags+=("${IMAGE_NAME}:latest")
-          fi
-          if [[ ${#tags[@]} -eq 0 ]]; then
-            tags+=("${IMAGE_NAME}:manual")
           fi
           {
             echo "value<<EOF"
