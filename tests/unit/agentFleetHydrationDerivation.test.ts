@@ -12,10 +12,7 @@ describe("deriveHydrateAgentFleetResult", () => {
       ...defaultStudioSettings(),
       avatars: {
         [gatewayUrl]: {
-          "agent-1": {
-            seed: "persisted-seed",
-            version: 1,
-          },
+          "agent-1": createDefaultAgentAvatarProfile("persisted-seed"),
         },
       },
     };
@@ -94,8 +91,8 @@ describe("deriveHydrateAgentFleetResult", () => {
         identityName: null,
         sessionDisplayName: "Main",
         sessionKey: "agent:agent-1:main",
-        avatarSeed: "agent-1",
-        avatarProfile: expect.objectContaining({ seed: "agent-1" }),
+        avatarSeed: "persisted-seed",
+        avatarProfile: expect.objectContaining({ seed: "persisted-seed" }),
         avatarUrl: "https://example.com/one.png",
         model: "openai/gpt-4.1",
         thinkingLevel: "medium",
