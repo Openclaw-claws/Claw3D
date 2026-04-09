@@ -1,5 +1,6 @@
 "use client";
 
+<<<<<<< HEAD
 import {
   type ReactNode,
   useCallback,
@@ -77,6 +78,10 @@ import {
   resolveActiveOfficeFloorId,
   type FloorId,
 } from "@/lib/office/floors";
+=======
+import { AgentChatPanel } from "@/features/agents/components/AgentChatPanel";
+import { AgentCreateWizardModal } from "@/features/agents/components/AgentCreateWizardModal";
+>>>>>>> feat/claw3doctor
 import {
   AgentEditorModal,
   type AgentEditorSection,
@@ -149,7 +154,10 @@ import {
   HQSidebar,
   type HQSidebarTab,
 } from "@/features/office/components/HQSidebar";
+<<<<<<< HEAD
 import { OfficeFloorNav } from "@/features/office/components/OfficeFloorNav";
+=======
+>>>>>>> feat/claw3doctor
 import {
   RemoteAgentChatPanel,
   type RemoteAgentChatMessage,
@@ -161,7 +169,10 @@ import { KanbanDisabledPanel } from "@/features/office/components/panels/KanbanD
 import { PlaybooksPanel } from "@/features/office/components/panels/PlaybooksPanel";
 import { SkillsMarketplaceModal } from "@/features/office/components/panels/SkillsMarketplaceModal";
 import { TaskBoardPanel } from "@/features/office/components/panels/TaskBoardPanel";
+<<<<<<< HEAD
 import { useOfficeFloorRuntimePersistence } from "@/features/office/hooks/useOfficeFloorRuntimePersistence";
+=======
+>>>>>>> feat/claw3doctor
 import { useOfficeSkillTriggers } from "@/features/office/hooks/useOfficeSkillTriggers";
 import { useOfficeSkillsMarketplace } from "@/features/office/hooks/useOfficeSkillsMarketplace";
 import { useOfficeStandupController } from "@/features/office/hooks/useOfficeStandupController";
@@ -230,6 +241,7 @@ import {
   type OfficePhoneCallRequest,
   type OfficeTextMessageRequest,
 } from "@/lib/office/eventTriggers";
+<<<<<<< HEAD
 import {
   buildFloorRosterErrorState,
   buildFloorRosterState,
@@ -240,6 +252,8 @@ import {
   resolveActiveOfficeFloorId,
   type FloorId,
 } from "@/lib/office/floors";
+=======
+>>>>>>> feat/claw3doctor
 import { buildOfficeSkillTriggerHoldMaps } from "@/lib/office/places";
 import type { StandupAgentSnapshot } from "@/lib/office/standup/types";
 import type { MockTextMessageScenario } from "@/lib/office/text/types";
@@ -253,7 +267,10 @@ import {
 import {
   resolveDeskAssignments,
   resolveOfficePreferencePublic,
+<<<<<<< HEAD
   resolveStudioActiveFloorId,
+=======
+>>>>>>> feat/claw3doctor
 } from "@/lib/studio/settings";
 import {
   extractText,
@@ -1011,23 +1028,14 @@ export function OfficeScreen({
     setToken,
     setSelectedAdapterType,
     supportsCapability,
-<<<<<<< HEAD
   } = useRuntimeConnection(settingsCoordinator);
-=======
-  } =
-    useRuntimeConnection(settingsCoordinator);
->>>>>>> dev/vera_lane
   const runtimeSupportsSkills = supportsCapability("skills");
   const runtimeSupportsApprovals = supportsCapability("approvals");
   const runtimeSupportsCron = supportsCapability("cron");
   const runtimeSupportsModels = supportsCapability("models");
-<<<<<<< HEAD
   const runtimeSupportsRunLifecycle = supportsCapability(
     "runtime-agent-events",
   );
-=======
-  const runtimeSupportsRunLifecycle = supportsCapability("runtime-agent-events");
->>>>>>> dev/vera_lane
   const { state, dispatch, hydrateAgents, setError, setLoading } =
     useAgentStore();
   const [agentsLoaded, setAgentsLoaded] = useState(false);
@@ -1376,7 +1384,6 @@ export function OfficeScreen({
         setChatOpen(true);
       }
       dispatch({ type: "selectAgent", agentId });
-<<<<<<< HEAD
       setFloorRosterCache((prev) => {
         const current = prev[activeFloorId];
         if (!current || current.selectedAgentId === agentId) return prev;
@@ -1429,10 +1436,6 @@ export function OfficeScreen({
       setSelectedAdapterType,
       settingsCoordinator,
     ],
-=======
-    },
-    [dispatch],
->>>>>>> dev/vera_lane
   );
   const focusChatTarget = useCallback(
     (agentId: string) => {
@@ -1668,6 +1671,7 @@ export function OfficeScreen({
     };
   }, [gatewayUrl, loadStudioSettings]);
 
+<<<<<<< HEAD
   // Persist live gateway connection transitions into officeFloors settings,
   // always attributed to the floor that owns the gateway URL — not whichever
   // floor happens to be active when a status update fires.
@@ -1679,6 +1683,8 @@ export function OfficeScreen({
     settingsCoordinator,
   });
 
+=======
+>>>>>>> feat/claw3doctor
   const loadAgents = useCallback(
     async (options?: {
       forceSettings?: boolean;
@@ -1697,7 +1703,6 @@ export function OfficeScreen({
       ) {
         return;
       }
-<<<<<<< HEAD
       const onlyWhenIdleForMs = options?.onlyWhenIdleForMs ?? 0;
       if (
         onlyWhenIdleForMs > 0 &&
@@ -1710,25 +1715,6 @@ export function OfficeScreen({
       const task = (async () => {
         if (!options?.silent) {
           setLoading(true);
-=======
-      try {
-        const settingsLoadOptions: StudioSettingsLoadOptions | undefined =
-          options?.forceSettings
-            ? { force: true }
-            : { maxAgeMs: options?.settingsMaxAgeMs ?? 60_000 };
-        const commands = await runStudioBootstrapLoadOperation({
-          client: provider,
-          gatewayUrl,
-          cachedConfigSnapshot: gatewayConfigSnapshot.current,
-          loadStudioSettings: () => loadStudioSettings(settingsLoadOptions),
-          isDisconnectLikeError: isGatewayDisconnectLikeError,
-          preferredSelectedAgentId: null,
-          hasCurrentSelection: false,
-          logError: console.error,
-        });
-        if (connectionEpochAtStart !== connectionEpochRef.current) {
-          return;
->>>>>>> dev/vera_lane
         }
         try {
           const settingsLoadOptions: StudioSettingsLoadOptions | undefined =
@@ -1765,6 +1751,8 @@ export function OfficeScreen({
               { kind: "set-error" }
             > => command.kind === "set-error",
           );
+=======
+>>>>>>> feat/claw3doctor
           executeStudioBootstrapLoadCommands({
             commands,
             setGatewayConfigSnapshot: (val: GatewayModelPolicySnapshot) => {
@@ -1776,6 +1764,7 @@ export function OfficeScreen({
             },
             setError,
           });
+<<<<<<< HEAD
           setFloorRosterCache((previous) => {
             if (hydrateCommand) {
               return {
@@ -1789,15 +1778,6 @@ export function OfficeScreen({
                   },
                 }),
               };
-=======
-          try {
-            const inference = await inferRunningFromAgentSessions({
-              client: provider,
-              agentId: agent.agentId,
-            });
-            if (connectionEpochAtStart !== connectionEpochRef.current) {
-              return;
->>>>>>> dev/vera_lane
             }
             if (errorCommand) {
               return {
@@ -1811,6 +1791,8 @@ export function OfficeScreen({
             }
             return previous;
           });
+=======
+>>>>>>> feat/claw3doctor
           if (connectionEpochAtStart !== connectionEpochRef.current) {
             return;
           }
@@ -1911,7 +1893,10 @@ export function OfficeScreen({
       setError,
       setLoading,
       status,
+<<<<<<< HEAD
       activeFloor.id,
+=======
+>>>>>>> feat/claw3doctor
     ],
   );
 
@@ -2011,13 +1996,9 @@ export function OfficeScreen({
   const runCompanyBuilderAiTask = useCallback(
     async (prompt: string, statusText: string) => {
       if (status !== "connected") {
-<<<<<<< HEAD
         throw new Error(
           "Connect to a runtime before using the company builder.",
         );
-=======
-        throw new Error("Connect to a runtime before using the company builder.");
->>>>>>> dev/vera_lane
       }
       const livePlannerAgent = resolveCompanyPlanningAgent({
         agents: stateRef.current.agents,
@@ -4865,32 +4846,7 @@ export function OfficeScreen({
     connectPromptReady &&
     status === "disconnected" &&
     !agentsLoaded &&
-<<<<<<< HEAD
     (shouldPromptForConnect || showDelayedGatewayConnectOverlay);
-=======
-    (shouldPromptForConnect || didAttemptGatewayConnect)
-  ) {
-    return (
-      <main className="min-h-screen bg-black px-4 py-10">
-        <GatewayConnectScreen
-          gatewayUrl={gatewayUrl}
-          token={token}
-          selectedAdapterType={selectedAdapterType}
-          activeAdapterType={activeAdapterType}
-          localGatewayDefaults={localGatewayDefaults}
-          status={status}
-          error={gatewayError}
-          showApprovalHint={didAttemptGatewayConnect}
-          onGatewayUrlChange={setGatewayUrl}
-          onTokenChange={setToken}
-          onAdapterTypeChange={setSelectedAdapterType}
-          onUseLocalDefaults={useLocalGatewayDefaults}
-          onConnect={() => void connect()}
-        />
-      </main>
-    );
-  }
->>>>>>> dev/vera_lane
 
   const runningCount = state.agents.filter(
     (agent) =>
@@ -5091,10 +5047,6 @@ export function OfficeScreen({
           taskBoardCaptureDebug={
             showOpenClawConsole ? taskBoard.taskCaptureDebug : undefined
           }
-<<<<<<< HEAD
-=======
-          taskBoardCaptureDebug={showOpenClawConsole ? taskBoard.taskCaptureDebug : undefined}
->>>>>>> dev/vera_lane
           onTaskBoardCreateCard={() => {
             taskBoard.createManualCard();
           }}
@@ -5757,11 +5709,14 @@ export function OfficeScreen({
                   messages={focusedRemoteChatState.messages}
                   disabledReason={remoteMessagingDisabledReason}
                   onDraftChange={(value) => {
-                    updateRemoteChatSession(focusedRemoteChatTarget.id, (session) => ({
-                      ...session,
-                      draft: value,
-                      error: null,
-                    }));
+                    updateRemoteChatSession(
+                      focusedRemoteChatTarget.id,
+                      (session) => ({
+                        ...session,
+                        draft: value,
+                        error: null,
+                      }),
+                    );
                   }}
                   onModeChange={(value) => {
                     updateRemoteChatSession(focusedRemoteChatTarget.id, (session) => ({
@@ -5789,10 +5744,18 @@ export function OfficeScreen({
                     }));
                   }}
                   onSend={(message) => {
+<<<<<<< HEAD
                     void handleRemoteAgentChatSend(focusedRemoteChatTarget.id, message);
                   }}
                   onHandoff={(message) => {
                     void handleRemoteAgentHandoff(focusedRemoteChatTarget.id, message);
+=======
+                    void handleChatSend(
+                      focusedRemoteChatTarget.id,
+                      "",
+                      message,
+                    );
+>>>>>>> feat/claw3doctor
                   }}
                 />
               ) : (

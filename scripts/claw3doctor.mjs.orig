@@ -1,3 +1,11 @@
+<<<<<<< HEAD
+import { createRequire } from "node:module";
+import fs from "node:fs";
+import path from "node:path";
+
+import {
+  buildDoctorJsonReport,
+=======
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -12,14 +20,18 @@ import {
   buildOpenClawWarnings,
   buildProfileWarnings,
   classifyGatewayFailure,
+>>>>>>> feat/claw3doctor
   DOCTOR_STATUSES,
   formatDoctorReport,
   parseDoctorArgs,
   resolveRuntimeContext,
+<<<<<<< HEAD
+=======
   shouldRunCustomChecks,
   shouldRunDemoChecks,
   shouldRunHermesChecks,
   shouldRunOpenClawChecks,
+>>>>>>> feat/claw3doctor
   summarizeChecks,
 } from "./lib/claw3doctor-core.mjs";
 
@@ -30,6 +42,8 @@ const {
   resolveStudioSettingsPath,
 } = require("../server/studio-settings.js");
 
+<<<<<<< HEAD
+=======
 function loadDotenvFile(filePath) {
   if (!fs.existsSync(filePath)) return;
   const content = fs.readFileSync(filePath, "utf8");
@@ -57,6 +71,7 @@ function loadRuntimeEnv() {
   loadDotenvFile(path.join(cwd, ".env"));
 }
 
+>>>>>>> feat/claw3doctor
 const readJsonFile = (filePath) => {
   try {
     if (!fs.existsSync(filePath)) return null;
@@ -66,6 +81,11 @@ const readJsonFile = (filePath) => {
   }
 };
 
+<<<<<<< HEAD
+const trim = (value) => (typeof value === "string" ? value.trim() : "");
+
+const checkPass = (category, label, message) => ({
+=======
 const formatErrorMessage = (error, fallback) => {
   if (!(error instanceof Error)) return fallback;
   if (
@@ -88,18 +108,31 @@ const formatErrorMessage = (error, fallback) => {
 };
 
 const checkPass = (category, label, message, actions) => ({
+>>>>>>> feat/claw3doctor
   status: DOCTOR_STATUSES.pass,
   category,
   label,
   message,
+<<<<<<< HEAD
+});
+
+const checkWarn = (category, label, message) => ({
+=======
   ...(actions?.length ? { actions } : {}),
 });
 
 const checkWarn = (category, label, message, actions) => ({
+>>>>>>> feat/claw3doctor
   status: DOCTOR_STATUSES.warn,
   category,
   label,
   message,
+<<<<<<< HEAD
+});
+
+async function main() {
+  const args = parseDoctorArgs(process.argv.slice(2));
+=======
   ...(actions?.length ? { actions } : {}),
 });
 
@@ -266,6 +299,7 @@ async function main() {
   loadRuntimeEnv();
   const args = parseDoctorArgs(process.argv.slice(2));
 
+>>>>>>> feat/claw3doctor
   const env = process.env;
   const stateDir = resolveStateDir(env);
   const settingsPath = resolveStudioSettingsPath(env);
@@ -276,6 +310,10 @@ async function main() {
     upstreamGateway,
     env,
   });
+<<<<<<< HEAD
+
+  const checks = [
+=======
   const workspace = detectWorkspaceState();
 
   /**
@@ -313,12 +351,27 @@ async function main() {
   );
 
   checks.push(
+>>>>>>> feat/claw3doctor
     runtimeContext.gatewayUrl
       ? checkPass(
           "Runtime profiles",
           "Runtime profile",
           `${runtimeContext.adapterType} selected at ${runtimeContext.gatewayUrl}`,
         )
+<<<<<<< HEAD
+      : checkWarn("Runtime profiles", "Runtime profile", "No runtime profile configured."),
+    checkPass(
+      "Runtime profiles",
+      "Gateway token",
+      runtimeContext.tokenConfigured ? "Configured." : "Missing.",
+    ),
+    checkPass(
+      "Workspace",
+      "Studio settings path",
+      trim(settingsPath) || "(not found)",
+    ),
+  ];
+=======
       : checkFail(
           "Runtime profiles",
           "Runtime profile",
@@ -571,6 +624,7 @@ async function main() {
       );
     }
   }
+>>>>>>> feat/claw3doctor
 
   const summary = summarizeChecks(checks);
   const reportInput = {
@@ -584,7 +638,10 @@ async function main() {
   } else {
     console.log(formatDoctorReport(reportInput));
   }
+<<<<<<< HEAD
+=======
   process.exit(summary === DOCTOR_STATUSES.fail ? 1 : 0);
+>>>>>>> feat/claw3doctor
 }
 
 await main();

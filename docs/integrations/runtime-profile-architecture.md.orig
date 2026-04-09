@@ -1,6 +1,10 @@
 # Runtime Profile Architecture
 
+<<<<<<< HEAD
+> Forward-looking runtime model for Claw3D after the OpenClaw + Hermes adapter work landed.
+=======
 > Forward-looking runtime model for Claw3D after the OpenClaw + Hermes adapter work landed on `main`.
+>>>>>>> feat/claw3doctor
 
 ## Goal
 
@@ -32,11 +36,19 @@ Optional paths:
 
 - `Hermes Adapter`
 - `Custom Runtime(s)`
+<<<<<<< HEAD
+- `Local Runtime`
+- `Claw3D Runtime`
+=======
+>>>>>>> feat/claw3doctor
 
 The important rule is:
 
 - the UI keeps speaking one Claw3D gateway contract
 - the backend behind that contract may be native OpenClaw, Hermes through
+<<<<<<< HEAD
+  the adapter, or a custom/runtime endpoint
+=======
   the adapter, or a custom runtime/provider
 
 ## Core Terms
@@ -318,3 +330,4 @@ Claw3D should move to a runtime profile model where:
 OpenClaw remains the default.
 Hermes adapter remains optional.
 Custom runtimes become first-class without special-case UI debt.
+>>>>>>> feat/claw3doctor

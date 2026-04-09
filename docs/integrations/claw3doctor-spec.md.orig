@@ -24,6 +24,8 @@ but focused on Claw3D's integration points across providers.
 - surface provider-specific hints without making the whole app provider-specific
 - reduce issue-thread back-and-forth
 
+<<<<<<< HEAD
+=======
 ## First-Pass Scope
 
 ### Claw3D Settings / Environment
@@ -235,6 +237,7 @@ much less painful.
 
 This is why it is sequenced ahead of deeper Office Systems feature work.
 
+>>>>>>> feat/claw3doctor
 ## V1 Delivery Boundary
 
 `claw3doctor` v1 should be considered complete when it provides:
@@ -242,6 +245,11 @@ This is why it is sequenced ahead of deeper Office Systems feature work.
 - selected-profile diagnostics with optional per-profile probing
 - grouped terminal output with clear pass / warn / fail results
 - JSON output for automation and issue reporting
+<<<<<<< HEAD
+- provider-aware checks for OpenClaw, Hermes, demo, local, claw3d, and custom runtimes
+- common failure classification for transport and auth problems
+- concrete remediation for local, remote, tunneled, and adapter-backed setups
+=======
 - provider-aware checks for OpenClaw, Hermes, demo, and custom runtimes
 - common failure classification for transport and auth problems
 - concrete remediation for local, remote, tunneled, and adapter-backed setups
@@ -291,3 +299,4 @@ After this spec, the next planning doc should be:
 
 That doc should define the metadata model before any admin-side floor
 builder is implemented.
+>>>>>>> feat/claw3doctor

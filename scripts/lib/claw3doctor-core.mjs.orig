@@ -4,7 +4,18 @@ export const DOCTOR_STATUSES = {
   fail: "FAIL",
 };
 
+<<<<<<< HEAD
+const VALID_ADAPTER_TYPES = new Set([
+  "openclaw",
+  "hermes",
+  "demo",
+  "custom",
+  "local",
+  "claw3d",
+]);
+=======
 const VALID_ADAPTER_TYPES = new Set(["openclaw", "hermes", "demo", "custom"]);
+>>>>>>> feat/claw3doctor
 const TUNNEL_HOST_PATTERN =
   /(cloudflare|trycloudflare|ngrok|tailscale|ts\.net|tunnel)/i;
 const DEFAULT_GATEWAY_URL_BY_ADAPTER = {
@@ -12,6 +23,11 @@ const DEFAULT_GATEWAY_URL_BY_ADAPTER = {
   hermes: "ws://localhost:18789",
   demo: "ws://localhost:18789",
   custom: "http://localhost:7770",
+<<<<<<< HEAD
+  local: "http://localhost:7770",
+  claw3d: "http://localhost:3000/api/runtime/custom",
+=======
+>>>>>>> feat/claw3doctor
 };
 
 const isRecord = (value) =>
@@ -275,19 +291,28 @@ export const buildGatewayFailureActions = ({
       "Verify the backend is actually listening on the configured host and port before retrying from Claw3D.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("1011")) {
     actions.push(
       "If this is OpenClaw behind a reverse proxy or tunnel, verify websocket upgrade handling and compare direct local/LAN behavior before assuming the runtime itself is broken.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("1012")) {
     actions.push(
       "A 1012-style close usually means the upstream is restarting or unavailable temporarily. Retry after checking the backend service logs.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (
     normalized.includes("1008") ||
     normalized.includes("pairing required") ||
@@ -297,7 +322,10 @@ export const buildGatewayFailureActions = ({
       "For OpenClaw, check pending device/browser approval with `openclaw devices list` and approve the request before retrying the remote browser session.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (
     normalized.includes("401") ||
     normalized.includes("403") ||
@@ -307,24 +335,40 @@ export const buildGatewayFailureActions = ({
       "Recheck the configured token/auth path. The gateway or proxy is rejecting the connection before the office can load.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (isCloudflare) {
     actions.push(
       "For Cloudflare or similar HTTPS tunnels, verify websocket upgrade forwarding and prefer an HTTPS-backed Studio path rather than a bare ws:// remote endpoint.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (isTailscale) {
     actions.push(
       "For Tailnet-hosted OpenClaw, test the same gateway directly on local/LAN first, then compare against the Tailnet URL so pairing/proxy issues do not get conflated.",
     );
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (isTunnelBacked) {
     actions.push(
       "Because this endpoint looks tunnel-backed, reproduce once via direct local or LAN access to separate runtime problems from tunnel/proxy problems.",
     );
   }
+<<<<<<< HEAD
+  if (adapterType === "custom" || adapterType === "local" || adapterType === "claw3d") {
+    actions.push(
+      "Custom-style runtimes should answer over HTTP on /health or /registry, not just a raw websocket endpoint.",
+    );
+  }
+=======
 
   if (adapterType === "custom") {
     actions.push(
@@ -332,13 +376,17 @@ export const buildGatewayFailureActions = ({
     );
   }
 
+>>>>>>> feat/claw3doctor
   return [...new Set(actions)];
 };
 
 export const classifyGatewayFailure = ({ message = "" }) => {
   const normalized = trimString(message).toLowerCase();
   if (!normalized) return null;
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("1008") || normalized.includes("pairing required")) {
     return {
       code: "1008",
@@ -347,7 +395,10 @@ export const classifyGatewayFailure = ({ message = "" }) => {
         "The upstream is rejecting this session for policy/pairing reasons. Check device approval, browser identity, and token flow.",
     };
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("1011")) {
     return {
       code: "1011",
@@ -356,7 +407,10 @@ export const classifyGatewayFailure = ({ message = "" }) => {
         "The websocket upgraded but the upstream failed mid-connect or during runtime handling. Check runtime logs and reverse-proxy websocket support.",
     };
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("1012")) {
     return {
       code: "1012",
@@ -365,7 +419,10 @@ export const classifyGatewayFailure = ({ message = "" }) => {
         "The upstream likely restarted or was briefly unavailable. Recheck service health and retry once the backend settles.",
     };
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (
     normalized.includes("401") ||
     normalized.includes("403") ||
@@ -379,7 +436,10 @@ export const classifyGatewayFailure = ({ message = "" }) => {
         "The upstream or proxy rejected auth before the office connected. Recheck the selected profile token, studio access path, and adapter env alignment.",
     };
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("econnrefused")) {
     return {
       code: "ECONNREFUSED",
@@ -388,7 +448,10 @@ export const classifyGatewayFailure = ({ message = "" }) => {
         "Nothing is listening on the configured host/port. Start the backend or fix the profile URL before retrying.",
     };
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   if (normalized.includes("timed out")) {
     return {
       code: "TIMEOUT",
@@ -397,7 +460,10 @@ export const classifyGatewayFailure = ({ message = "" }) => {
         "The endpoint did not complete the handshake in time. Check proxy path, host reachability, and whether the backend is overloaded or hanging.",
     };
   }
+<<<<<<< HEAD
+=======
 
+>>>>>>> feat/claw3doctor
   return null;
 };
 
@@ -415,9 +481,13 @@ export const summarizeChecks = (checks) => {
 
 export const shouldRunHermesChecks = ({ runtimeContext, env = process.env }) =>
   runtimeContext.adapterType === "hermes" ||
+<<<<<<< HEAD
+  Boolean(trimString(env.HERMES_API_URL) || trimString(env.HERMES_ADAPTER_PORT));
+=======
   Boolean(
     trimString(env.HERMES_API_URL) || trimString(env.HERMES_ADAPTER_PORT),
   );
+>>>>>>> feat/claw3doctor
 
 export const shouldRunOpenClawChecks = ({
   runtimeContext,
@@ -429,7 +499,13 @@ export const shouldRunDemoChecks = ({ runtimeContext, env = process.env }) =>
   Boolean(trimString(env.DEMO_ADAPTER_PORT));
 
 export const shouldRunCustomChecks = ({ runtimeContext }) =>
+<<<<<<< HEAD
+  runtimeContext.adapterType === "custom" ||
+  runtimeContext.adapterType === "local" ||
+  runtimeContext.adapterType === "claw3d";
+=======
   runtimeContext.adapterType === "custom";
+>>>>>>> feat/claw3doctor
 
 export const formatDoctorReport = ({
   summary,
@@ -438,12 +514,18 @@ export const formatDoctorReport = ({
   checks,
 }) => {
   const summaryCounts = {
+<<<<<<< HEAD
+    pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass).length,
+    warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn).length,
+    fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail).length,
+=======
     pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass)
       .length,
     warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn)
       .length,
     fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail)
       .length,
+>>>>>>> feat/claw3doctor
   };
   const groupedChecks = new Map();
   for (const check of checks) {
@@ -458,12 +540,17 @@ export const formatDoctorReport = ({
   lines.push("==================================================");
   lines.push("");
   lines.push(`Runtime provider: ${runtimeContext.adapterType}`);
+<<<<<<< HEAD
+  lines.push(`Selected profile: ${runtimeContext.gatewayUrl || "(not configured)"}`);
+  lines.push(`Gateway token: ${runtimeContext.tokenConfigured ? "configured" : "missing"}`);
+=======
   lines.push(
     `Selected profile: ${runtimeContext.gatewayUrl || "(not configured)"}`,
   );
   lines.push(
     `Gateway token: ${runtimeContext.tokenConfigured ? "configured" : "missing"}`,
   );
+>>>>>>> feat/claw3doctor
   lines.push(`State dir: ${paths.stateDir}`);
   lines.push(`Studio settings: ${paths.settingsPath}`);
   const configuredProfiles = Object.entries(runtimeContext.profiles ?? {});
@@ -478,12 +565,19 @@ export const formatDoctorReport = ({
   );
   lines.push("");
   for (const [category, categoryChecks] of groupedChecks.entries()) {
+<<<<<<< HEAD
+    lines.push(category);
+    lines.push("-".repeat(category.length));
+    for (const check of categoryChecks) {
+      lines.push(`  ${formatStatusBadge(check.status)} ${check.label}: ${check.message}`);
+=======
     lines.push(`${category}`);
     lines.push("-".repeat(category.length));
     for (const check of categoryChecks) {
       lines.push(
         `  ${formatStatusBadge(check.status)} ${check.label}: ${check.message}`,
       );
+>>>>>>> feat/claw3doctor
     }
     lines.push("");
   }
@@ -509,6 +603,14 @@ export const buildDoctorJsonReport = ({
   paths,
   checks,
   counts: {
+<<<<<<< HEAD
+    pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass).length,
+    warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn).length,
+    fail: checks.filter((check) => check.status === DOCTOR_STATUSES.fail).length,
+  },
+});
+
+=======
     pass: checks.filter((check) => check.status === DOCTOR_STATUSES.pass)
       .length,
     warn: checks.filter((check) => check.status === DOCTOR_STATUSES.warn)
@@ -522,6 +624,7 @@ export const buildDoctorJsonReport = ({
  * Parse CLI argv into structured doctor args.
  * Exported so the flag behaviour can be unit tested without spawning a process.
  */
+>>>>>>> feat/claw3doctor
 export const parseDoctorArgs = (argv) => {
   const args = {
     json: false,
