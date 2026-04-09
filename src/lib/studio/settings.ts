@@ -58,6 +58,8 @@ export type StudioGatewayConnectionState = {
   adapterType: StudioGatewayAdapterType;
 };
 
+export type StudioGatewayAdapterType = "openclaw" | "hermes" | "demo" | "custom";
+
 export type StudioGatewaySettingsPublic = {
   url: string;
   tokenConfigured: boolean;
@@ -1017,6 +1019,22 @@ export const resolveStudioGatewayProfiles = ({
     profiles,
     lastKnownGoodForSelected,
   };
+};
+
+const normalizeGatewayAdapterType = (
+  value: unknown,
+  fallback: StudioGatewayAdapterType = "openclaw"
+): StudioGatewayAdapterType => {
+  const adapterType = coerceString(value).toLowerCase();
+  if (
+    adapterType === "demo" ||
+    adapterType === "hermes" ||
+    adapterType === "openclaw" ||
+    adapterType === "custom"
+  ) {
+    return adapterType;
+  }
+  return fallback;
 };
 
 const normalizeFocused = (value: unknown): Record<string, StudioFocusedPreference> => {

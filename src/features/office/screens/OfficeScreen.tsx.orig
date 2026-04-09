@@ -1,6 +1,5 @@
 "use client";
 
-<<<<<<< HEAD
 import {
   type ReactNode,
   useCallback,
@@ -62,10 +61,7 @@ import {
 import { resolveOfficeIntentSnapshot } from "@/lib/office/deskDirectives";
 import { OfficeFloorNav } from "@/features/office/components/OfficeFloorNav";
 import { AgentChatPanel } from "@/features/agents/components/AgentChatPanel";
-import {
-  RemoteAgentChatPanel,
-  type RemoteAgentChatMessage,
-} from "@/features/office/components/RemoteAgentChatPanel";
+import { AgentCreateWizardModal } from "@/features/agents/components/AgentCreateWizardModal";
 import { useOfficeFloorRuntimePersistence } from "@/features/office/hooks/useOfficeFloorRuntimePersistence";
 import {
   buildDirectedAgentMessageInstruction,
@@ -81,10 +77,6 @@ import {
   resolveActiveOfficeFloorId,
   type FloorId,
 } from "@/lib/office/floors";
-=======
-import { AgentChatPanel } from "@/features/agents/components/AgentChatPanel";
-import { AgentCreateWizardModal } from "@/features/agents/components/AgentCreateWizardModal";
->>>>>>> feat/office-systems-next
 import {
   AgentEditorModal,
   type AgentEditorSection,
@@ -1019,14 +1011,23 @@ export function OfficeScreen({
     setToken,
     setSelectedAdapterType,
     supportsCapability,
+<<<<<<< HEAD
   } = useRuntimeConnection(settingsCoordinator);
+=======
+  } =
+    useRuntimeConnection(settingsCoordinator);
+>>>>>>> dev/vera_lane
   const runtimeSupportsSkills = supportsCapability("skills");
   const runtimeSupportsApprovals = supportsCapability("approvals");
   const runtimeSupportsCron = supportsCapability("cron");
   const runtimeSupportsModels = supportsCapability("models");
+<<<<<<< HEAD
   const runtimeSupportsRunLifecycle = supportsCapability(
     "runtime-agent-events",
   );
+=======
+  const runtimeSupportsRunLifecycle = supportsCapability("runtime-agent-events");
+>>>>>>> dev/vera_lane
   const { state, dispatch, hydrateAgents, setError, setLoading } =
     useAgentStore();
   const [agentsLoaded, setAgentsLoaded] = useState(false);
@@ -1208,7 +1209,6 @@ export function OfficeScreen({
     () => getOfficeFloor(resolveActiveOfficeFloorId(activeFloorId)),
     [activeFloorId],
   );
-<<<<<<< HEAD
 
   useEffect(() => {
     let cancelled = false;
@@ -1228,8 +1228,10 @@ export function OfficeScreen({
     };
   }, [settingsCoordinator]);
 
-=======
->>>>>>> feat/office-systems-next
+  const activeFloor = useMemo(
+    () => getOfficeFloor(resolveActiveOfficeFloorId(activeFloorId)),
+    [activeFloorId],
+  );
   useEffect(() => {
     initJukeboxStore();
   }, [initJukeboxStore]);
@@ -1375,10 +1377,6 @@ export function OfficeScreen({
       }
       dispatch({ type: "selectAgent", agentId });
 <<<<<<< HEAD
-=======
-      // Keep per-floor cache in sync so handleSelectFloor can restore the last
-      // agent the user selected when they switch back to this floor.
->>>>>>> feat/office-systems-next
       setFloorRosterCache((prev) => {
         const current = prev[activeFloorId];
         if (!current || current.selectedAgentId === agentId) return prev;
@@ -1391,7 +1389,6 @@ export function OfficeScreen({
     [activeFloorId, dispatch],
   );
   const handleSelectFloor = useCallback(
-<<<<<<< HEAD
     async (floorId: FloorId) => {
       const resolved = resolveActiveOfficeFloorId(floorId);
       const floor = getOfficeFloor(resolved);
@@ -1413,36 +1410,17 @@ export function OfficeScreen({
         console.error("Failed to resolve floor runtime profile.", error);
       }
 
-=======
-    (floorId: FloorId) => {
-      const resolved = resolveActiveOfficeFloorId(floorId);
-      setActiveFloorId(resolved);
-      settingsCoordinator.schedulePatch(
-        {
-          activeFloorId: resolved,
-        },
-        0,
-      );
-      setOfficeCameraCenterSignal((current) => current + 1);
->>>>>>> feat/office-systems-next
       const preferredAgentId =
         floorRosterCache[resolved]?.selectedAgentId ??
         floorRosterCache[resolved]?.entries[0]?.agentId ??
         null;
       if (
         preferredAgentId &&
-<<<<<<< HEAD
         stateRef.current.agents.some((agent) => agent.agentId === preferredAgentId)
-=======
-        stateRef.current.agents.some(
-          (agent) => agent.agentId === preferredAgentId,
-        )
->>>>>>> feat/office-systems-next
       ) {
         focusLocalAgent(preferredAgentId, { openChat: false });
       }
     },
-<<<<<<< HEAD
     [
       floorRosterCache,
       focusLocalAgent,
@@ -1452,8 +1430,9 @@ export function OfficeScreen({
       settingsCoordinator,
     ],
 =======
-    [floorRosterCache, focusLocalAgent, settingsCoordinator],
->>>>>>> feat/office-systems-next
+    },
+    [dispatch],
+>>>>>>> dev/vera_lane
   );
   const focusChatTarget = useCallback(
     (agentId: string) => {
@@ -1718,6 +1697,7 @@ export function OfficeScreen({
       ) {
         return;
       }
+<<<<<<< HEAD
       const onlyWhenIdleForMs = options?.onlyWhenIdleForMs ?? 0;
       if (
         onlyWhenIdleForMs > 0 &&
@@ -1730,6 +1710,25 @@ export function OfficeScreen({
       const task = (async () => {
         if (!options?.silent) {
           setLoading(true);
+=======
+      try {
+        const settingsLoadOptions: StudioSettingsLoadOptions | undefined =
+          options?.forceSettings
+            ? { force: true }
+            : { maxAgeMs: options?.settingsMaxAgeMs ?? 60_000 };
+        const commands = await runStudioBootstrapLoadOperation({
+          client: provider,
+          gatewayUrl,
+          cachedConfigSnapshot: gatewayConfigSnapshot.current,
+          loadStudioSettings: () => loadStudioSettings(settingsLoadOptions),
+          isDisconnectLikeError: isGatewayDisconnectLikeError,
+          preferredSelectedAgentId: null,
+          hasCurrentSelection: false,
+          logError: console.error,
+        });
+        if (connectionEpochAtStart !== connectionEpochRef.current) {
+          return;
+>>>>>>> dev/vera_lane
         }
         try {
           const settingsLoadOptions: StudioSettingsLoadOptions | undefined =
@@ -1749,6 +1748,7 @@ export function OfficeScreen({
           if (connectionEpochAtStart !== connectionEpochRef.current) {
             return;
           }
+<<<<<<< HEAD
           const hydrateCommand = commands.find(
             (
               command,
@@ -1789,6 +1789,15 @@ export function OfficeScreen({
                   },
                 }),
               };
+=======
+          try {
+            const inference = await inferRunningFromAgentSessions({
+              client: provider,
+              agentId: agent.agentId,
+            });
+            if (connectionEpochAtStart !== connectionEpochRef.current) {
+              return;
+>>>>>>> dev/vera_lane
             }
             if (errorCommand) {
               return {
@@ -2002,9 +2011,13 @@ export function OfficeScreen({
   const runCompanyBuilderAiTask = useCallback(
     async (prompt: string, statusText: string) => {
       if (status !== "connected") {
+<<<<<<< HEAD
         throw new Error(
           "Connect to a runtime before using the company builder.",
         );
+=======
+        throw new Error("Connect to a runtime before using the company builder.");
+>>>>>>> dev/vera_lane
       }
       const livePlannerAgent = resolveCompanyPlanningAgent({
         agents: stateRef.current.agents,
@@ -4852,7 +4865,32 @@ export function OfficeScreen({
     connectPromptReady &&
     status === "disconnected" &&
     !agentsLoaded &&
+<<<<<<< HEAD
     (shouldPromptForConnect || showDelayedGatewayConnectOverlay);
+=======
+    (shouldPromptForConnect || didAttemptGatewayConnect)
+  ) {
+    return (
+      <main className="min-h-screen bg-black px-4 py-10">
+        <GatewayConnectScreen
+          gatewayUrl={gatewayUrl}
+          token={token}
+          selectedAdapterType={selectedAdapterType}
+          activeAdapterType={activeAdapterType}
+          localGatewayDefaults={localGatewayDefaults}
+          status={status}
+          error={gatewayError}
+          showApprovalHint={didAttemptGatewayConnect}
+          onGatewayUrlChange={setGatewayUrl}
+          onTokenChange={setToken}
+          onAdapterTypeChange={setSelectedAdapterType}
+          onUseLocalDefaults={useLocalGatewayDefaults}
+          onConnect={() => void connect()}
+        />
+      </main>
+    );
+  }
+>>>>>>> dev/vera_lane
 
   const runningCount = state.agents.filter(
     (agent) =>
@@ -5053,6 +5091,10 @@ export function OfficeScreen({
           taskBoardCaptureDebug={
             showOpenClawConsole ? taskBoard.taskCaptureDebug : undefined
           }
+<<<<<<< HEAD
+=======
+          taskBoardCaptureDebug={showOpenClawConsole ? taskBoard.taskCaptureDebug : undefined}
+>>>>>>> dev/vera_lane
           onTaskBoardCreateCard={() => {
             taskBoard.createManualCard();
           }}
@@ -5715,14 +5757,11 @@ export function OfficeScreen({
                   messages={focusedRemoteChatState.messages}
                   disabledReason={remoteMessagingDisabledReason}
                   onDraftChange={(value) => {
-                    updateRemoteChatSession(
-                      focusedRemoteChatTarget.id,
-                      (session) => ({
-                        ...session,
-                        draft: value,
-                        error: null,
-                      }),
-                    );
+                    updateRemoteChatSession(focusedRemoteChatTarget.id, (session) => ({
+                      ...session,
+                      draft: value,
+                      error: null,
+                    }));
                   }}
                   onModeChange={(value) => {
                     updateRemoteChatSession(focusedRemoteChatTarget.id, (session) => ({
@@ -5750,18 +5789,10 @@ export function OfficeScreen({
                     }));
                   }}
                   onSend={(message) => {
-<<<<<<< HEAD
                     void handleRemoteAgentChatSend(focusedRemoteChatTarget.id, message);
                   }}
                   onHandoff={(message) => {
                     void handleRemoteAgentHandoff(focusedRemoteChatTarget.id, message);
-=======
-                    void handleChatSend(
-                      focusedRemoteChatTarget.id,
-                      "",
-                      message,
-                    );
->>>>>>> feat/office-systems-next
                   }}
                 />
               ) : (

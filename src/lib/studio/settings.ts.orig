@@ -27,6 +27,7 @@ export type StudioGatewaySettings = {
   url: string;
   token: string;
   adapterType: StudioGatewayAdapterType;
+<<<<<<< HEAD
   profiles?: Partial<Record<StudioGatewayAdapterType, StudioGatewayProfile>>;
   lastKnownGood?: StudioGatewayConnectionState;
 };
@@ -56,12 +57,17 @@ export type StudioGatewayConnectionState = {
   url: string;
   token: string;
   adapterType: StudioGatewayAdapterType;
+=======
+>>>>>>> dev/vera_lane
 };
+
+export type StudioGatewayAdapterType = "openclaw" | "hermes" | "demo" | "custom";
 
 export type StudioGatewaySettingsPublic = {
   url: string;
   tokenConfigured: boolean;
   adapterType: StudioGatewayAdapterType;
+<<<<<<< HEAD
   profiles?: Partial<Record<StudioGatewayAdapterType, StudioGatewayProfilePublic>>;
   lastKnownGood?: StudioGatewayConnectionStatePublic;
 };
@@ -75,12 +81,15 @@ export type StudioGatewayConnectionStatePublic = {
   url: string;
   tokenConfigured: boolean;
   adapterType: StudioGatewayAdapterType;
+=======
+>>>>>>> dev/vera_lane
 };
 
 export type StudioGatewaySettingsPatch = {
   url?: string | null;
   token?: string | null;
   adapterType?: StudioGatewayAdapterType | null;
+<<<<<<< HEAD
   profiles?: Partial<Record<StudioGatewayAdapterType, StudioGatewayProfilePatch | null>> | null;
   lastKnownGood?: StudioGatewayConnectionStatePatch | null;
 };
@@ -101,6 +110,8 @@ export type ResolvedStudioGatewayProfiles = {
   activeProfile: StudioGatewayProfile;
   profiles: Partial<Record<StudioGatewayAdapterType, StudioGatewayProfile>>;
   lastKnownGoodForSelected: StudioGatewayConnectionState | null;
+=======
+>>>>>>> dev/vera_lane
 };
 
 export type FocusFilter = "all" | "running" | "approvals";
@@ -322,11 +333,7 @@ const normalizeGatewayKey = (value: unknown) => {
 
 const normalizeFloorRuntimeConnectionStatus = (
   value: unknown,
-<<<<<<< HEAD
   fallback: FloorRuntimeConnectionStatus = "disconnected",
-=======
-  fallback: FloorRuntimeConnectionStatus = "disconnected"
->>>>>>> feat/office-systems-next
 ): FloorRuntimeConnectionStatus => {
   if (
     value === "disconnected" ||
@@ -452,11 +459,7 @@ export const defaultStudioTaskBoardPreference =
   (): StudioTaskBoardPreference => defaultTaskBoardPreference();
 
 export const defaultStudioFloorRuntimeState = (
-<<<<<<< HEAD
   floorId: FloorId,
-=======
-  floorId: FloorId
->>>>>>> feat/office-systems-next
 ): StudioFloorRuntimeState => {
   const floor = getOfficeFloor(floorId);
   return {
@@ -795,6 +798,7 @@ const normalizeGatewaySettings = (value: unknown): StudioGatewaySettings | null 
   if (!url) return null;
   const token = coerceString(value.token);
   const adapterType = normalizeGatewayAdapterType(value.adapterType);
+<<<<<<< HEAD
   const profiles = normalizeGatewayProfiles(value.profiles);
   const lastKnownGood = normalizeGatewayConnectionState(value.lastKnownGood);
   return {
@@ -812,6 +816,9 @@ const normalizeGatewayProfile = (value: unknown): StudioGatewayProfile | null =>
   if (!url) return null;
   const token = coerceString(value.token);
   return { url, token };
+=======
+  return { url, token, adapterType };
+>>>>>>> dev/vera_lane
 };
 
 const normalizeGatewayProfiles = (
@@ -853,15 +860,19 @@ const mergeGatewaySettings = (
     patch.adapterType === undefined
       ? current?.adapterType ?? "openclaw"
       : normalizeGatewayAdapterType(patch.adapterType);
+<<<<<<< HEAD
   const nextProfiles = mergeGatewayProfiles(current?.profiles, patch.profiles);
   const nextLastKnownGood = mergeGatewayConnectionState(
     current?.lastKnownGood ?? null,
     patch.lastKnownGood
   );
+=======
+>>>>>>> dev/vera_lane
   return {
     url: nextUrl,
     token: nextToken,
     adapterType: nextAdapterType,
+<<<<<<< HEAD
     ...(nextProfiles ? { profiles: nextProfiles } : {}),
     ...(nextLastKnownGood ? { lastKnownGood: nextLastKnownGood } : {}),
   };
@@ -1024,7 +1035,25 @@ export const resolveStudioGatewayProfiles = ({
       resolveDefaultStudioGatewayProfile(selectedAdapterType, localDefaults),
     profiles,
     lastKnownGoodForSelected,
+=======
+>>>>>>> dev/vera_lane
   };
+};
+
+const normalizeGatewayAdapterType = (
+  value: unknown,
+  fallback: StudioGatewayAdapterType = "openclaw"
+): StudioGatewayAdapterType => {
+  const adapterType = coerceString(value).toLowerCase();
+  if (
+    adapterType === "demo" ||
+    adapterType === "hermes" ||
+    adapterType === "openclaw" ||
+    adapterType === "custom"
+  ) {
+    return adapterType;
+  }
+  return fallback;
 };
 
 const normalizeFocused = (value: unknown): Record<string, StudioFocusedPreference> => {
@@ -1217,11 +1246,7 @@ const normalizeOffice = (value: unknown): Record<string, StudioOfficePreference>
 const normalizeFloorRuntimeState = (
   floorId: FloorId,
   value: unknown,
-<<<<<<< HEAD
   fallback: StudioFloorRuntimeState = defaultStudioFloorRuntimeState(floorId),
-=======
-  fallback: StudioFloorRuntimeState = defaultStudioFloorRuntimeState(floorId)
->>>>>>> feat/office-systems-next
 ): StudioFloorRuntimeState => {
   if (!isRecord(value)) return fallback;
   const floor = getOfficeFloor(floorId);
@@ -1253,13 +1278,7 @@ const normalizeFloorRuntimeState = (
   };
 };
 
-<<<<<<< HEAD
 const normalizeOfficeFloors = (value: unknown): Record<FloorId, StudioFloorRuntimeState> => {
-=======
-const normalizeOfficeFloors = (
-  value: unknown
-): Record<FloorId, StudioFloorRuntimeState> => {
->>>>>>> feat/office-systems-next
   const floors = {} as Record<FloorId, StudioFloorRuntimeState>;
   for (const floor of OFFICE_FLOORS) {
     const raw = isRecord(value) ? value[floor.id] : undefined;
@@ -1291,6 +1310,7 @@ export const sanitizeStudioGatewaySettings = (
     url: value.url,
     tokenConfigured: value.token.length > 0,
     adapterType: value.adapterType,
+<<<<<<< HEAD
     profiles: value.profiles
       ? Object.fromEntries(
           Object.entries(value.profiles).map(([adapterType, profile]) => [
@@ -1309,6 +1329,8 @@ export const sanitizeStudioGatewaySettings = (
           adapterType: value.lastKnownGood.adapterType,
         }
       : undefined,
+=======
+>>>>>>> dev/vera_lane
   };
 };
 
@@ -1422,11 +1444,7 @@ export const mergeStudioSettings = (
           ...fallback,
           ...floorPatch,
         },
-<<<<<<< HEAD
         fallback,
-=======
-        fallback
->>>>>>> feat/office-systems-next
       );
     }
   }
@@ -1649,19 +1667,11 @@ export const resolveFocusedPreference = (
 
 export const resolveStudioFloorRuntimeState = (
   settings: StudioSettings | StudioSettingsPublic,
-<<<<<<< HEAD
   floorId: FloorId,
 ): StudioFloorRuntimeState => settings.officeFloors[floorId] ?? defaultStudioFloorRuntimeState(floorId);
 
 export const resolveStudioActiveFloorId = (
   settings: StudioSettings | StudioSettingsPublic,
-=======
-  floorId: FloorId
-): StudioFloorRuntimeState => settings.officeFloors[floorId] ?? defaultStudioFloorRuntimeState(floorId);
-
-export const resolveStudioActiveFloorId = (
-  settings: StudioSettings | StudioSettingsPublic
->>>>>>> feat/office-systems-next
 ): FloorId => resolveActiveOfficeFloorId(settings.activeFloorId);
 
 export const resolveAgentAvatarSeed = (
