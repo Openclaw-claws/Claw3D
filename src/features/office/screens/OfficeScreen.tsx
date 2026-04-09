@@ -4217,7 +4217,7 @@ export function OfficeScreen({
       ) : null}
       {showGatewayConnectOverlay ? (
         <div className="pointer-events-auto absolute inset-0 z-50 flex items-start justify-center overflow-y-auto bg-[#120a05]/76 px-3 py-4 safe-area-pad sm:px-4 sm:py-10">
-          <div className="max-h-full w-full max-w-[860px] overflow-hidden rounded-2xl border border-amber-900/55 bg-[#120a05]/98 p-3 shadow-2xl sm:p-4">
+          <div className="w-full max-w-[860px] rounded-2xl border border-amber-900/55 bg-[#120a05]/98 p-3 shadow-2xl sm:p-4">
             <GatewayConnectScreen
               gatewayUrl={gatewayUrl}
               token={token}

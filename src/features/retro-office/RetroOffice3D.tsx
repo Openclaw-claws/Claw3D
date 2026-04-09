@@ -7082,7 +7082,7 @@ export function RetroOffice3D({
           <button
             onClick={toggleEdit}
             title={editMode ? "Done editing" : "Edit office"}
-            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all backdrop-blur-sm border ${editMode ? "bg-amber-500/30 text-amber-300 border-amber-500/50" : "bg-[#1c1610]/80 text-amber-500/40 border-amber-900/20 hover:text-amber-400"}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-md border transition-all backdrop-blur-sm sm:h-7 sm:w-7 ${editMode ? "border-amber-500/50 bg-amber-500/30 text-amber-300" : "border-amber-900/20 bg-[#1c1610]/80 text-amber-500/40 hover:text-amber-400"}`}
           >
             {editMode ? (
               <Check size={12} strokeWidth={2.5} />
@@ -7093,7 +7093,7 @@ export function RetroOffice3D({
           <button
             onClick={() => setSettingsModalOpen(true)}
             title="Voice reply settings"
-            className={`w-7 h-7 flex items-center justify-center rounded-md transition-all backdrop-blur-sm border ${settingsModalOpen ? "bg-amber-500/30 text-amber-300 border-amber-500/50" : "bg-[#1c1610]/80 text-amber-500/40 border-amber-900/20 hover:text-amber-400"}`}
+            className={`flex h-9 w-9 items-center justify-center rounded-md border transition-all backdrop-blur-sm sm:h-7 sm:w-7 ${settingsModalOpen ? "border-amber-500/50 bg-amber-500/30 text-amber-300" : "border-amber-900/20 bg-[#1c1610]/80 text-amber-500/40 hover:text-amber-400"}`}
           >
             <Settings2 size={12} />
           </button>
