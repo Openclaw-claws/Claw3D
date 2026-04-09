@@ -9,10 +9,8 @@ import { useCallback, useMemo, useState } from "react";
 import { ArrowLeft, ArrowRight, X } from "lucide-react";
 
 import {
-  getNextStep,
-  getPrevStep,
-  getStepIndex,
-  ONBOARDING_STEPS,
+  LOCAL_ONBOARDING_STEPS,
+  MANAGED_ONBOARDING_STEPS,
   type OnboardingStepId,
 } from "@/features/onboarding/types";
 import { WelcomeStep } from "@/features/onboarding/components/WelcomeStep";
@@ -21,6 +19,8 @@ import { ConnectStep } from "@/features/onboarding/components/ConnectStep";
 import { AgentsStep } from "@/features/onboarding/components/AgentsStep";
 import { CompanyStep } from "@/features/onboarding/components/CompanyStep";
 import { CompleteStep } from "@/features/onboarding/components/CompleteStep";
+import { ManagedByokStep } from "@/features/onboarding/components/ManagedByokStep";
+import { isManagedClaw3dDeployment } from "@/lib/deployment/mode";
 
 export type OnboardingWizardProps = {
   /** Whether the gateway is currently connected. */
@@ -66,14 +66,20 @@ export const OnboardingWizard = ({
   connectionError,
   connecting,
 }: OnboardingWizardProps) => {
+  const managedDeployment = isManagedClaw3dDeployment();
+  const steps = managedDeployment ? MANAGED_ONBOARDING_STEPS : LOCAL_ONBOARDING_STEPS;
   const [currentStep, setCurrentStep] = useState<OnboardingStepId>(initialStep);
   const [completedSteps, setCompletedSteps] = useState<Set<OnboardingStepId>>(
     () => new Set(initialCompletedSteps ?? []),
   );
+  const [managedByokReady, setManagedByokReady] = useState(false);
 
-  const stepIndex = useMemo(() => getStepIndex(currentStep), [currentStep]);
-  const currentStepDef = ONBOARDING_STEPS[stepIndex];
-  const totalSteps = ONBOARDING_STEPS.length;
+  const stepIndex = useMemo(
+    () => steps.findIndex((step) => step.id === currentStep),
+    [currentStep, steps],
+  );
+  const currentStepDef = stepIndex >= 0 ? steps[stepIndex] : null;
+  const totalSteps = steps.length;
 
   const markComplete = useCallback(
     (stepId: OnboardingStepId) => {
@@ -88,8 +94,8 @@ export const OnboardingWizard = ({
 
   const goNext = useCallback(() => {
     markComplete(currentStep);
-    let next = getNextStep(currentStep);
-    if (next === "agents" && agentCount === 0) {
+    let next = stepIndex >= 0 && stepIndex < steps.length - 1 ? steps[stepIndex + 1]?.id ?? null : null;
+    if (!managedDeployment && next === "agents" && agentCount === 0) {
       markComplete("agents");
       next = "company";
     }
@@ -98,18 +104,18 @@ export const OnboardingWizard = ({
     } else {
       onComplete();
     }
-  }, [agentCount, currentStep, markComplete, onComplete]);
+  }, [agentCount, currentStep, managedDeployment, markComplete, onComplete, stepIndex, steps]);
 
   const goPrev = useCallback(() => {
-    const prev = getPrevStep(currentStep);
+    const prev = stepIndex > 0 ? steps[stepIndex - 1]?.id ?? null : null;
     if (prev) setCurrentStep(prev);
-  }, [currentStep]);
+  }, [stepIndex, steps]);
 
   const canGoNext = useMemo(() => {
-    // Connect step requires gateway connection before proceeding
     if (currentStep === "connect" && !gatewayConnected) return false;
+    if (currentStep === "byok" && !managedByokReady) return false;
     return true;
-  }, [currentStep, gatewayConnected]);
+  }, [currentStep, gatewayConnected, managedByokReady]);
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -130,6 +136,8 @@ export const OnboardingWizard = ({
             error={connectionError}
           />
         );
+      case "byok":
+        return <ManagedByokStep onReadyChange={setManagedByokReady} />;
       case "agents":
         return <AgentsStep agentCount={agentCount} connected={gatewayConnected} />;
       case "company":
@@ -178,7 +186,7 @@ export const OnboardingWizard = ({
 
         {/* Progress bar */}
         <div className="flex gap-1.5 px-6 pt-4">
-          {ONBOARDING_STEPS.map((step, idx) => (
+          {steps.map((step, idx) => (
             <div
               key={step.id}
               className={`h-1 flex-1 rounded-full transition-colors ${
@@ -230,6 +238,8 @@ export const OnboardingWizard = ({
               >
                 {currentStep === "connect" && !gatewayConnected
                   ? "Connect first"
+                  : currentStep === "byok" && !managedByokReady
+                    ? "Add key first"
                   : "Next"}
                 <ArrowRight className="h-3.5 w-3.5" />
               </button>
