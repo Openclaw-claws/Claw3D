@@ -51,6 +51,15 @@ export const normalizeAdapterType = (value, fallback = "openclaw") => {
   return VALID_ADAPTER_TYPES.has(normalized) ? normalized : fallback;
 };
 
+export const isCustomRuntimeAdapter = (adapterType) => {
+  const normalized = normalizeAdapterType(adapterType, "");
+  return (
+    normalized === "custom" ||
+    normalized === "local" ||
+    normalized === "claw3d"
+  );
+};
+
 export const resolveRuntimeContext = ({
   settings,
   upstreamGateway,
@@ -337,7 +346,7 @@ export const buildGatewayFailureActions = ({
     );
   }
 
-  if (adapterType === "custom") {
+  if (isCustomRuntimeAdapter(adapterType)) {
     actions.push(
       "Custom runtimes should answer over HTTP on /health or /registry, not just a raw websocket endpoint.",
     );
@@ -440,7 +449,7 @@ export const shouldRunDemoChecks = ({ runtimeContext, env = process.env }) =>
   Boolean(trimString(env.DEMO_ADAPTER_PORT));
 
 export const shouldRunCustomChecks = ({ runtimeContext }) =>
-  runtimeContext.adapterType === "custom";
+  isCustomRuntimeAdapter(runtimeContext.adapterType);
 
 export const formatDoctorReport = ({
   summary,

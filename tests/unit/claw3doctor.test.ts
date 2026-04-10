@@ -10,6 +10,7 @@ import {
   classifyGatewayFailure,
   DOCTOR_STATUSES,
   formatDoctorReport,
+  isCustomRuntimeAdapter,
   parseDoctorArgs,
   resolveRuntimeContext,
   shouldRunCustomChecks,
@@ -66,6 +67,24 @@ describe("claw3doctor core", () => {
         expect.stringContaining("STUDIO_ACCESS_TOKEN"),
       ]),
     );
+  });
+
+  it("supports local and claw3d runtime defaults", () => {
+    expect(
+      resolveRuntimeContext({
+        settings: { gateway: { adapterType: "local" } },
+        upstreamGateway: { url: "", token: "", adapterType: "local" },
+        env: process.env,
+      }).gatewayUrl,
+    ).toBe("http://localhost:7770");
+
+    expect(
+      resolveRuntimeContext({
+        settings: { gateway: { adapterType: "claw3d" } },
+        upstreamGateway: { url: "", token: "", adapterType: "claw3d" },
+        env: process.env,
+      }).gatewayUrl,
+    ).toBe("http://localhost:3000/api/runtime/custom");
   });
 
   it("uses adapter-specific defaults for custom profiles", () => {
@@ -217,6 +236,23 @@ describe("claw3doctor core", () => {
         runtimeContext: { adapterType: "custom" },
       }),
     ).toBe(true);
+    expect(
+      shouldRunCustomChecks({
+        runtimeContext: { adapterType: "local" },
+      }),
+    ).toBe(true);
+    expect(
+      shouldRunCustomChecks({
+        runtimeContext: { adapterType: "claw3d" },
+      }),
+    ).toBe(true);
+  });
+
+  it("treats local and claw3d as custom-runtime adapters", () => {
+    expect(isCustomRuntimeAdapter("custom")).toBe(true);
+    expect(isCustomRuntimeAdapter("local")).toBe(true);
+    expect(isCustomRuntimeAdapter("claw3d")).toBe(true);
+    expect(isCustomRuntimeAdapter("openclaw")).toBe(false);
   });
 
   it("builds a structured json report", () => {
@@ -332,9 +368,15 @@ describe("adapterInScope scoping semantics", () => {
   // be verified independently of the full CLI entrypoint.
   const makeAdapterInScope =
     (args: { allProfiles: boolean; profile: string | null }) =>
-    (adapterType: string, defaultBehavior: boolean): boolean => {
+    (
+      adapterType: string,
+      defaultBehavior: boolean,
+      aliases: string[] = [],
+    ): boolean => {
       if (args.allProfiles) return true;
-      if (args.profile) return args.profile === adapterType;
+      if (args.profile) {
+        return args.profile === adapterType || aliases.includes(args.profile);
+      }
       return defaultBehavior;
     };
 
@@ -353,7 +395,7 @@ describe("adapterInScope scoping semantics", () => {
     expect(inScope("hermes", false)).toBe(true);
     expect(inScope("openclaw", true)).toBe(false); // openclaw would default to true but is suppressed
     expect(inScope("demo", true)).toBe(false);
-    expect(inScope("custom", false)).toBe(false);
+    expect(inScope("custom", false, ["local", "claw3d"])).toBe(false);
   });
 
   it("--profile openclaw: only openclaw is in scope", () => {
@@ -371,5 +413,23 @@ describe("adapterInScope scoping semantics", () => {
     expect(inScope("openclaw", false)).toBe(true);
     expect(inScope("demo", false)).toBe(true);
     expect(inScope("custom", false)).toBe(true);
+  });
+
+  it("--profile local: custom-runtime checks stay in scope", () => {
+    const inScope = makeAdapterInScope({
+      allProfiles: false,
+      profile: "local",
+    });
+    expect(inScope("custom", false, ["local", "claw3d"])).toBe(true);
+    expect(inScope("openclaw", true)).toBe(false);
+  });
+
+  it("--profile claw3d: custom-runtime checks stay in scope", () => {
+    const inScope = makeAdapterInScope({
+      allProfiles: false,
+      profile: "claw3d",
+    });
+    expect(inScope("custom", false, ["local", "claw3d"])).toBe(true);
+    expect(inScope("demo", true)).toBe(false);
   });
 });

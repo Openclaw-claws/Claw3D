@@ -16,6 +16,7 @@ import {
   formatDoctorReport,
   parseDoctorArgs,
   resolveRuntimeContext,
+  isCustomRuntimeAdapter,
   shouldRunCustomChecks,
   shouldRunDemoChecks,
   shouldRunHermesChecks,
@@ -409,7 +410,12 @@ async function main() {
     }
   }
 
-  if (adapterInScope("custom", shouldRunCustomChecks({ runtimeContext }))) {
+  const customRuntimeInScope = args.allProfiles
+    ? true
+    : args.profile
+      ? isCustomRuntimeAdapter(args.profile)
+      : shouldRunCustomChecks({ runtimeContext });
+  if (customRuntimeInScope) {
     for (const warning of buildCustomRuntimeWarnings({
       gatewayUrl: runtimeContext.gatewayUrl,
       allowlist:
@@ -446,7 +452,7 @@ async function main() {
               message: health.message,
               gatewayUrl: url,
             }).concat(
-              adapterType === "custom"
+              isCustomRuntimeAdapter(adapterType)
                 ? [
                     "If this runtime sits behind the Studio custom proxy, verify CUSTOM_RUNTIME_ALLOWLIST / UPSTREAM_ALLOWLIST for the target host.",
                   ]
