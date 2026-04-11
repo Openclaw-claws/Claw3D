@@ -354,6 +354,26 @@ export const FloorAndWalls = memo(function FloorAndWalls({
               </mesh>
             );
           })}
+
+          {Array.from({ length: 5 }).map((_, index) => {
+            const [wx, , wz] = toWorld(220 + index * 280, 785);
+            return (
+              <group key={`shopping-awning-${index}`} position={[wx, 0, wz]}>
+                <mesh position={[0, 0.9, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[1.3, 0.08, 0.42]} />
+                  <meshStandardMaterial color="#5d4037" roughness={0.8} metalness={0.08} />
+                </mesh>
+                <mesh position={[0, 1.08, 0]} castShadow receiveShadow>
+                  <boxGeometry args={[1.22, 0.16, 0.36]} />
+                  <meshStandardMaterial color="#f59e0b" roughness={0.46} metalness={0.06} />
+                </mesh>
+                <mesh position={[0, 0.52, 0.02]} castShadow receiveShadow>
+                  <boxGeometry args={[1.1, 0.72, 0.16]} />
+                  <meshStandardMaterial color="#7c3aed" roughness={0.58} metalness={0.12} />
+                </mesh>
+              </group>
+            );
+          })}
         </>
       ) : null}
 

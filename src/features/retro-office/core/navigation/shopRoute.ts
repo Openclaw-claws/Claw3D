@@ -6,9 +6,9 @@ import type {
 } from "@/features/retro-office/core/types";
 
 export const SHOP_TARGET: FacingPoint = {
-  x: 80,
-  y: 415,
-  facing: Math.PI / 2,
+  x: 280,
+  y: 840,
+  facing: 0,
 };
 
 export const resolveShopRoute = (
@@ -27,18 +27,18 @@ export const resolveShopRoute = (
   const { width, height } = getItemBaseSize(item);
   const centerY = item.y + height / 2;
   const approachTarget = {
-    x: item.x - 28,
-    y: centerY,
-    facing: Math.PI / 2,
+    x: item.x + width / 2,
+    y: item.y + height + 50,
+    facing: 0,
   };
   const counterTarget = {
-    x: item.x + width * 0.4,
+    x: item.x + width / 2,
     y: centerY,
-    facing: Math.PI / 2,
+    facing: 0,
   };
 
   const atCounter =
-    x >= approachTarget.x - 6 || Math.hypot(x - approachTarget.x, y - approachTarget.y) < 18;
+    y <= approachTarget.y + 6 || Math.hypot(x - approachTarget.x, y - approachTarget.y) < 18;
   if (atCounter) {
     return {
       stage: "counter",

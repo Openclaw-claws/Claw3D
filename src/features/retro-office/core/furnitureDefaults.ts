@@ -62,9 +62,9 @@ const DEFAULT_JUKEBOX: FurnitureSeed = {
 
 const DEFAULT_SHOP: FurnitureSeed = {
   type: "shop",
-  x: 560,
-  y: 210,
-  facing: 270,
+  x: 320,
+  y: 840,
+  facing: 0,
 };
 
 const DEFAULT_KANBAN_BOARD: FurnitureSeed = {
@@ -114,6 +114,18 @@ const DEFAULT_DINING_ITEMS: FurnitureSeed[] = [
   { type: "chair", x: 930, y: 180, facing: 180 },
   { type: "chair", x: 880, y: 130, facing: 90 },
   { type: "chair", x: 970, y: 130, facing: 270 },
+];
+
+const DEFAULT_SHOPPING_STRIP_ITEMS: FurnitureSeed[] = [
+  { type: "table_rect", x: 230, y: 820, w: 110, h: 40, facing: 0 },
+  { type: "vending", x: 470, y: 790, facing: 0 },
+  { type: "table_rect", x: 670, y: 870, w: 120, h: 40, facing: 0 },
+  { type: "plant", x: 210, y: 930 },
+  { type: "plant", x: 520, y: 930 },
+  { type: "plant", x: 860, y: 930 },
+  { type: "couch", x: 1010, y: 820, w: 90, h: 30, facing: 0 },
+  { type: "couch", x: 1200, y: 820, w: 90, h: 30, facing: 0 },
+  { type: "couch", x: 1390, y: 820, w: 90, h: 30, facing: 0 },
 ];
 
 const DEFAULT_SERVER_ROOM_ITEMS: FurnitureSeed[] = [
@@ -522,6 +534,7 @@ const DEFAULT_FURNITURE: FurnitureSeed[] = [
   { type: "plant", x: 1090, y: 310 },
   { type: "plant", x: 1100, y: 490 },
   { type: "plant", x: 530, y: 700 },
+  ...DEFAULT_SHOPPING_STRIP_ITEMS,
   ...DEFAULT_SERVER_ROOM_ITEMS,
   ...DEFAULT_GYM_ITEMS,
   ...DEFAULT_QA_LAB_ITEMS,
