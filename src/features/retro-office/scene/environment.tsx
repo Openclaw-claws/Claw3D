@@ -17,6 +17,7 @@ import {
   LOCAL_OFFICE_CANVAS_HEIGHT,
   LOCAL_OFFICE_CANVAS_WIDTH,
   REMOTE_OFFICE_ZONE,
+  SHOPPING_ZONE,
 } from "@/features/retro-office/core/district";
 import { toWorld } from "@/features/retro-office/core/geometry";
 
@@ -189,10 +190,12 @@ export const FloorAndWalls = memo(function FloorAndWalls({
     QA_LAB_X + QA_LAB_WIDTH / 2,
     EAST_WING_ROOM_TOP_Y + EAST_WING_ROOM_HEIGHT / 2,
   );
-  const [pathCenterX, , pathCenterZ] = toWorld(
-    (CITY_PATH_ZONE.minX + CITY_PATH_ZONE.maxX) / 2,
-    (CITY_PATH_ZONE.minY + CITY_PATH_ZONE.maxY) / 2,
+  const [shoppingCenterX, , shoppingCenterZ] = toWorld(
+    (SHOPPING_ZONE.minX + SHOPPING_ZONE.maxX) / 2,
+    (SHOPPING_ZONE.minY + SHOPPING_ZONE.maxY) / 2,
   );
+  const shoppingWidth = (SHOPPING_ZONE.maxX - SHOPPING_ZONE.minX) * SCALE;
+  const shoppingHeight = (SHOPPING_ZONE.maxY - SHOPPING_ZONE.minY) * SCALE;
   const [, , remoteOfficeCenterZ] = toWorld(
     (REMOTE_OFFICE_ZONE.minX + REMOTE_OFFICE_ZONE.maxX) / 2,
     (REMOTE_OFFICE_ZONE.minY + REMOTE_OFFICE_ZONE.maxY) / 2,
@@ -257,35 +260,96 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           </mesh>
 
           <mesh
-            position={[pathCenterX, 0.002, pathCenterZ]}
+            position={[shoppingCenterX, 0.002, shoppingCenterZ]}
             rotation={[-Math.PI / 2, 0, 0]}
             receiveShadow
           >
             <planeGeometry
               args={[
-                (CITY_PATH_ZONE.maxX - CITY_PATH_ZONE.minX) * SCALE,
-                (CITY_PATH_ZONE.maxY - CITY_PATH_ZONE.minY) * SCALE,
+                shoppingWidth,
+                shoppingHeight,
               ]}
             />
-            <meshStandardMaterial color="#6d8b5a" roughness={0.96} metalness={0.02} />
+            <meshStandardMaterial color="#2f3528" roughness={0.96} metalness={0.02} />
           </mesh>
 
           <mesh
-            position={[pathCenterX, 0.004, pathCenterZ]}
+            position={[shoppingCenterX, 0.004, shoppingCenterZ]}
             rotation={[-Math.PI / 2, 0, 0]}
             receiveShadow
           >
             <planeGeometry
               args={[
-                (CITY_PATH_ZONE.maxX - CITY_PATH_ZONE.minX) * SCALE * 0.92,
-                (CITY_PATH_ZONE.maxY - CITY_PATH_ZONE.minY) * SCALE * 0.74,
+                shoppingWidth * 0.94,
+                shoppingHeight * 0.9,
               ]}
             />
-            <meshStandardMaterial color="#c9ae8d" roughness={0.9} metalness={0.04} />
+            <meshStandardMaterial color="#d8d2c8" roughness={0.9} metalness={0.04} />
           </mesh>
 
-          {Array.from({ length: 8 }).map((_, index) => {
-            const [wx, , wz] = toWorld(330 + index * 170, 820 + (index % 2 === 0 ? -44 : 44));
+          <mesh position={[shoppingCenterX, 0.42, shoppingCenterZ - shoppingHeight / 2 + 0.18]}>
+            <boxGeometry args={[shoppingWidth, 0.84, 0.16]} />
+            <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh position={[shoppingCenterX - shoppingWidth / 2 + 0.08, 0.42, shoppingCenterZ]}>
+            <boxGeometry args={[0.16, 0.84, shoppingHeight]} />
+            <meshStandardMaterial color="#8c8278" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh position={[shoppingCenterX + shoppingWidth / 2 - 0.08, 0.42, shoppingCenterZ]}>
+            <boxGeometry args={[0.16, 0.84, shoppingHeight]} />
+            <meshStandardMaterial color="#8c8278" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh position={[shoppingCenterX, 0.42, shoppingCenterZ + shoppingHeight / 2 - 0.08]}>
+            <boxGeometry args={[shoppingWidth * 0.36, 0.84, 0.16]} />
+            <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh
+            position={[shoppingCenterX - shoppingWidth * 0.32, 0.42, shoppingCenterZ + shoppingHeight / 2 - 0.08]}
+          >
+            <boxGeometry args={[shoppingWidth * 0.22, 0.84, 0.16]} />
+            <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh
+            position={[shoppingCenterX + shoppingWidth * 0.32, 0.42, shoppingCenterZ + shoppingHeight / 2 - 0.08]}
+          >
+            <boxGeometry args={[shoppingWidth * 0.22, 0.84, 0.16]} />
+            <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh position={[shoppingCenterX, 0.88, shoppingCenterZ]}>
+            <boxGeometry args={[shoppingWidth, 0.06, shoppingHeight]} />
+            <meshStandardMaterial color="#544d45" roughness={0.78} metalness={0.1} transparent opacity={0.82} />
+          </mesh>
+
+          <group position={[shoppingCenterX, 0.86, shoppingCenterZ + shoppingHeight / 2 - 0.24]}>
+            <mesh position={[0, 0.12, 0]}>
+              <boxGeometry args={[3.6, 0.24, 0.12]} />
+              <meshStandardMaterial color="#111827" roughness={0.42} metalness={0.18} />
+            </mesh>
+            <mesh position={[0, 0.12, 0.08]}>
+              <planeGeometry args={[3.1, 0.16]} />
+              <meshBasicMaterial color="#facc15" side={2} />
+            </mesh>
+          </group>
+
+          {Array.from({ length: 4 }).map((_, index) => {
+            const labelX = [260, 640, 1020, 1400][index] ?? 260;
+            const [wx, , wz] = toWorld(labelX, 760);
+            return (
+              <group key={`shopping-header-${index}`} position={[wx, 0.88, wz]}>
+                <mesh>
+                  <boxGeometry args={[1.5, 0.18, 0.08]} />
+                  <meshStandardMaterial
+                    color={["#22c55e", "#f59e0b", "#38bdf8", "#a855f7"][index]}
+                    roughness={0.3}
+                    metalness={0.06}
+                  />
+                </mesh>
+              </group>
+            );
+          })}
+
+          {Array.from({ length: 10 }).map((_, index) => {
+            const [wx, , wz] = toWorld(250 + index * 150, 1085 + (index % 2 === 0 ? -38 : 38));
             return (
               <mesh key={`garden-bed-${index}`} position={[wx, 0.03, wz]} castShadow receiveShadow>
                 <boxGeometry args={[0.58, 0.06, 0.18]} />
@@ -294,8 +358,8 @@ export const FloorAndWalls = memo(function FloorAndWalls({
             );
           })}
 
-          {Array.from({ length: 8 }).map((_, index) => {
-            const [wx, , wz] = toWorld(330 + index * 170, 820 + (index % 2 === 0 ? -44 : 44));
+          {Array.from({ length: 10 }).map((_, index) => {
+            const [wx, , wz] = toWorld(250 + index * 150, 1085 + (index % 2 === 0 ? -38 : 38));
             return (
               <mesh key={`garden-bed-top-${index}`} position={[wx, 0.09, wz]}>
                 <boxGeometry args={[0.48, 0.05, 0.12]} />
@@ -305,7 +369,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           })}
 
           {Array.from({ length: 6 }).map((_, index) => {
-            const [wx, , wz] = toWorld(420 + index * 190, 900);
+            const [wx, , wz] = toWorld(310 + index * 240, 1120);
             return (
               <group key={`garden-light-${index}`} position={[wx, 0, wz]}>
                 <mesh position={[0, 0.2, 0]} castShadow>
@@ -321,7 +385,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           })}
 
           {Array.from({ length: 8 }).map((_, index) => {
-            const [wx, , wz] = toWorld(220 + index * 190, 1005);
+            const [wx, , wz] = toWorld(180 + index * 200, 745);
             return (
               <mesh
                 key={`city-light-${index}`}
@@ -336,7 +400,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           })}
 
           {Array.from({ length: 4 }).map((_, index) => {
-            const [wx, , wz] = toWorld(250 + index * 430, 955);
+            const [wx, , wz] = toWorld(260 + index * 430, 1090);
             return (
               <mesh key={`city-planter-${index}`} position={[wx, 0.08, wz]} castShadow>
                 <boxGeometry args={[0.46, 0.14, 0.26]} />
@@ -346,7 +410,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           })}
 
           {Array.from({ length: 4 }).map((_, index) => {
-            const [wx, , wz] = toWorld(250 + index * 430, 955);
+            const [wx, , wz] = toWorld(260 + index * 430, 1090);
             return (
               <mesh key={`city-planter-top-${index}`} position={[wx, 0.18, wz]}>
                 <boxGeometry args={[0.38, 0.08, 0.18]} />
@@ -356,7 +420,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           })}
 
           {Array.from({ length: 6 }).map((_, index) => {
-            const [wx, , wz] = toWorld(190 + index * 270, 770);
+            const [wx, , wz] = toWorld(190 + index * 270, 745);
             return (
               <group key={`shopping-awning-${index}`} position={[wx, 0, wz]}>
                 <mesh position={[0, 0.9, 0]} castShadow receiveShadow>
@@ -376,7 +440,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           })}
 
           {Array.from({ length: 5 }).map((_, index) => {
-            const [wx, , wz] = toWorld(300 + index * 280, 1010);
+            const [wx, , wz] = toWorld(300 + index * 280, 760);
             return (
               <group key={`shopping-section-${index}`} position={[wx, 0, wz]}>
                 <mesh position={[0, 0.52, 0]} castShadow receiveShadow>
