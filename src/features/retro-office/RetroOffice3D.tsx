@@ -86,6 +86,7 @@ import {
   ensureOfficePhoneBooth,
   ensureOfficePingPongTable,
   ensureOfficeQaLab,
+  ensureOfficeShopAnnexShelves,
   ensureOfficeSmsBooth,
   ensureOfficeJukebox,
   ensureOfficeShop,
@@ -147,6 +148,7 @@ import {
   markGymRoomMigrationApplied,
   markPhoneBoothMigrationApplied,
   markQaLabMigrationApplied,
+  markShopAnnexShelvesMigrationApplied,
   markSmsBoothMigrationApplied,
   markServerRoomMigrationApplied,
   saveFurniture,
@@ -162,6 +164,7 @@ import type {
 import type { NavGrid } from "@/features/retro-office/core/navigation";
 import type { OfficeLayoutSnapshot } from "@/lib/office/layoutSnapshot";
 import { AgentModel as AgentObjectModel } from "@/features/retro-office/objects/agents";
+import { GroceryShelfModel as InteractiveGroceryShelfModel } from "@/features/retro-office/objects/GroceryShelf";
 import { JukeboxModel as InteractiveJukeboxModel } from "@/features/retro-office/objects/Jukebox";
 import { ShopModel as InteractiveShopModel } from "@/features/retro-office/objects/Shop";
 import {
@@ -350,6 +353,12 @@ const PALETTE: PaletteEntry[] = [
     label: "Bookshelf",
     icon: "📚",
     defaults: { w: 80, h: 120 },
+  },
+  {
+    type: "grocery_shelf",
+    label: "Grocery Shelf",
+    icon: "🛒",
+    defaults: { w: 70, h: 130, facing: 0 },
   },
   { type: "plant", label: "Plant", icon: "🪴", defaults: {} },
   {
@@ -782,6 +791,17 @@ const ReadOnlyFurnitureClone = memo(function ReadOnlyFurnitureClone({
           <KitchenWallCabinetModel
             key={item._uid}
             item={item}
+            editMode={false}
+            onPointerDown={NOOP_FURNITURE_UID_HANDLER}
+            onPointerOver={NOOP_FURNITURE_UID_HANDLER}
+            onPointerOut={NOOP_FURNITURE_HANDLER}
+          />
+        ) : item.type === "grocery_shelf" ? (
+          <InteractiveGroceryShelfModel
+            key={item._uid}
+            item={item}
+            isSelected={false}
+            isHovered={false}
             editMode={false}
             onPointerDown={NOOP_FURNITURE_UID_HANDLER}
             onPointerOver={NOOP_FURNITURE_UID_HANDLER}
@@ -2418,6 +2438,7 @@ export function RetroOffice3D({
   monitorByAgentId = EMPTY_MONITOR_MAP,
   githubSkill = null,
   amazonOrderingEnabled = false,
+  shopOrderCompletionSignal = 0,
   taskManagerEnabled = false,
   soundclawEnabled = false,
   officeTitle = "Luke Headquarters",
@@ -2534,6 +2555,7 @@ export function RetroOffice3D({
   monitorByAgentId?: OfficeDeskMonitorMap;
   githubSkill?: SkillStatusEntry | null;
   amazonOrderingEnabled?: boolean;
+  shopOrderCompletionSignal?: number;
   taskManagerEnabled?: boolean;
   soundclawEnabled?: boolean;
   officeTitle?: string;
@@ -2672,8 +2694,10 @@ export function RetroOffice3D({
                   ensureOfficePhoneBooth(
                     ensureOfficeSmsBooth(
                       ensureOfficeAtm(
-                        ensureOfficePingPongTable(
-                          items.filter((item) => !isRetiredPingPongLamp(item)),
+                        ensureOfficeShopAnnexShelves(
+                          ensureOfficePingPongTable(
+                            items.filter((item) => !isRetiredPingPongLamp(item)),
+                          ),
                         ),
                       ),
                     ),
@@ -2917,6 +2941,10 @@ export function RetroOffice3D({
 
   useEffect(() => {
     markQaLabMigrationApplied(storageNamespace);
+  }, [storageNamespace]);
+
+  useEffect(() => {
+    markShopAnnexShelvesMigrationApplied(storageNamespace);
   }, [storageNamespace]);
 
   useEffect(() => {
@@ -4382,6 +4410,15 @@ export function RetroOffice3D({
       window.clearTimeout(timer);
     };
   }, [activeShopUid]);
+  useEffect(() => {
+    if (!shopOrderCompletionSignal) return;
+    const timer = window.setTimeout(() => {
+      setActiveShopUid(null);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [shopOrderCompletionSignal]);
 
   useEffect(() => {
     const resetTimer = window.setTimeout(() => {
@@ -5941,6 +5978,18 @@ export function RetroOffice3D({
                     onPointerDown={handleFurniturePointerDown}
                     onPointerOver={handleFurniturePointerOver}
                     onPointerOut={handleFurniturePointerOut}
+                  />
+                ) : item.type === "grocery_shelf" ? (
+                  <InteractiveGroceryShelfModel
+                    key={item._uid}
+                    item={item}
+                    isSelected={item._uid === selectedUid}
+                    isHovered={item._uid === hoverUid}
+                    editMode={editMode}
+                    onPointerDown={handleFurniturePointerDown}
+                    onPointerOver={handleFurniturePointerOver}
+                    onPointerOut={handleFurniturePointerOut}
+                    onClick={handleDeskClick}
                   />
                 ) : (
                   <GenericFurnitureModel

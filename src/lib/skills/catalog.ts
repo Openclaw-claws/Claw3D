@@ -35,9 +35,8 @@ const PACKAGED_SKILLS: PackagedSkillDefinition[] = [
     description:
       "Buy and return items on Amazon using browser automation for purchases, reorders, order lookups, and returns.",
     installSource: "openclaw-workspace",
-    creatorName: "brennerspear",
-    creatorUrl:
-      "https://github.com/openclaw/skills/tree/main/skills/brennerspear/amazon-shopper",
+    creatorName: "lukethedev",
+    creatorUrl: "https://github.com/iamlukethedev",
   },
   {
     packageId: "todo-board",

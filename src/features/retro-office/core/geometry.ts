@@ -44,6 +44,7 @@ export const ITEM_FOOTPRINT: Record<string, [number, number]> = {
   couch: [100, 40],
   couch_v: [40, 80],
   bookshelf: [80, 120],
+  grocery_shelf: [70, 130],
   plant: [24, 24],
   beanbag: [40, 40],
   pingpong: [100, 60],
@@ -127,6 +128,7 @@ export const ITEM_METADATA: Record<string, { blocksNavigation: boolean; navPaddi
   pingpong:        { blocksNavigation: true  },
   // ── storage / shelving ────────────────────────────────────────────────────
   bookshelf:       { blocksNavigation: true  },
+  grocery_shelf:   { blocksNavigation: true  },
   cabinet:         { blocksNavigation: true  },
   wall_cabinet:    { blocksNavigation: false }, // wall-mounted; agents walk under
   // ── kitchen appliances ────────────────────────────────────────────────────

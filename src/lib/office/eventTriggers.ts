@@ -37,6 +37,7 @@ import {
   resolveOfficeGithubDirective,
   resolveOfficeGymDirective,
   resolveOfficeQaDirective,
+  resolveOfficeShopDirective,
   resolveOfficeTextDirective,
 } from "@/lib/office/deskDirectives";
 import { extractText, extractThinking } from "@/lib/text/message-extract";
@@ -100,6 +101,7 @@ export type OfficeAnimationTriggerState = {
   phoneCallDirectiveKeyByAgentId: StringByAgentId;
   qaDirectiveKeyByAgentId: StringByAgentId;
   qaHoldByAgentId: BooleanByAgentId;
+  shopHoldByAgentId: BooleanByAgentId;
   sessionEpochSnapshot: SessionEpochSnapshot;
   skillGymDirectiveKeyByAgentId: StringByAgentId;
   skillGymHoldByAgentId: BooleanByAgentId;
@@ -527,6 +529,7 @@ const hasOtherOfficeDirective = (
   Boolean(
     snapshot.desk ||
     snapshot.github ||
+      snapshot.shop ||
     snapshot.gym ||
     snapshot.qa ||
     snapshot.art ||
@@ -591,7 +594,9 @@ const resolveTextMessageFollowUpRequest = (params: {
 
 const applyHoldDirective = (
   currentHeld: boolean,
-  directive: LatestDirective<"desk" | "github" | "qa_lab" | "release"> | null,
+  directive:
+    | LatestDirective<"desk" | "github" | "shop" | "qa_lab" | "release">
+    | null,
 ): boolean => {
   if (!directive) return currentHeld;
   if (directive.directive === "release") return false;
@@ -646,6 +651,7 @@ const pruneOfficeAnimationTriggerState = (
       activeAgentIds,
     ),
     qaHoldByAgentId: pruneBooleanMap(state.qaHoldByAgentId, activeAgentIds),
+    shopHoldByAgentId: pruneBooleanMap(state.shopHoldByAgentId, activeAgentIds),
     skillGymDirectiveKeyByAgentId: pruneStringMap(
       state.skillGymDirectiveKeyByAgentId,
       activeAgentIds,
@@ -793,6 +799,20 @@ const applyUserMessageTriggers = (params: {
           : { ...next.qaHoldByAgentId, [params.agentId]: true },
     };
   }
+  const shopDirective = intentSnapshot.shop;
+  if (shopDirective) {
+    next = {
+      ...next,
+      shopHoldByAgentId:
+        shopDirective === "release"
+          ? Object.fromEntries(
+              Object.entries(next.shopHoldByAgentId).filter(
+                ([agentId]) => agentId !== params.agentId,
+              ),
+            )
+          : { ...next.shopHoldByAgentId, [params.agentId]: true },
+    };
+  }
   if (intentSnapshot.gym?.source === "manual") {
     const gymCommandKey = normalizeCommandText(params.message);
     next = {
@@ -910,6 +930,7 @@ export const createOfficeAnimationTriggerState =
     phoneCallDirectiveKeyByAgentId: emptyObject(),
     qaDirectiveKeyByAgentId: emptyObject(),
     qaHoldByAgentId: emptyObject(),
+    shopHoldByAgentId: emptyObject(),
     sessionEpochSnapshot: {},
     skillGymDirectiveKeyByAgentId: emptyObject(),
     skillGymHoldByAgentId: emptyObject(),
@@ -1099,6 +1120,7 @@ export const reconcileOfficeAnimationTriggerState = (params: {
   const phoneCallByAgentId: PhoneCallByAgentId = {};
   const phoneCallDirectiveKeyByAgentId: StringByAgentId = {};
   const qaHoldByAgentId: BooleanByAgentId = {};
+  const shopHoldByAgentId: BooleanByAgentId = {};
   const qaDirectiveKeyByAgentId: StringByAgentId = {};
   const skillGymHoldByAgentId: BooleanByAgentId = {};
   const skillGymDirectiveKeyByAgentId: StringByAgentId = {};
@@ -1182,6 +1204,24 @@ export const reconcileOfficeAnimationTriggerState = (params: {
       qaHoldByAgentId[agentId] = true;
     }
 
+    const shopDirective = resolveLatestDirective({
+      lastUserMessage: agent.lastUserMessage,
+      transcriptEntries: agent.transcriptEntries,
+      resolver: resolveOfficeShopDirective,
+    });
+    if (shopDirective) {
+      if (
+        applyHoldDirective(
+          Boolean(next.shopHoldByAgentId[agentId]),
+          shopDirective,
+        )
+      ) {
+        shopHoldByAgentId[agentId] = true;
+      }
+    } else if (next.shopHoldByAgentId[agentId]) {
+      shopHoldByAgentId[agentId] = true;
+    }
+
     const skillGymDirective = resolveLatestDirective({
       lastUserMessage: agent.lastUserMessage,
       transcriptEntries: agent.transcriptEntries,
@@ -1259,6 +1299,7 @@ export const reconcileOfficeAnimationTriggerState = (params: {
     phoneCallDirectiveKeyByAgentId,
     qaDirectiveKeyByAgentId,
     qaHoldByAgentId,
+    shopHoldByAgentId,
     sessionEpochSnapshot: buildSessionEpochSnapshot(params.agents),
     skillGymDirectiveKeyByAgentId,
     skillGymHoldByAgentId,
@@ -1393,6 +1434,9 @@ export const buildOfficeAnimationState = (params: {
     }
     if (params.state.deskHoldByAgentId[agentId] && !gymHoldByAgentId[agentId]) {
       deskHoldByAgentId[agentId] = true;
+    }
+    if (params.state.shopHoldByAgentId[agentId]) {
+      shopHoldByAgentId[agentId] = true;
     }
   }
 

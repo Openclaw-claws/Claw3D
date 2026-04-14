@@ -173,6 +173,14 @@ export const FloorAndWalls = memo(function FloorAndWalls({
 }: {
   showRemoteOffice?: boolean;
 }) {
+  const SHOP_ANNEX_MIN_X = 0;
+  const SHOP_ANNEX_MAX_X = 360;
+  const SHOP_DOOR_CENTER_X = 180;
+  const SHOP_DOOR_OPENING_WIDTH = 96 * SCALE;
+  const SHOP_OFFICE_DOOR_CENTER_X = 300;
+  const SHOP_OFFICE_DOOR_OPENING_WIDTH = 72 * SCALE;
+  const SHOP_ANNEX_ENTRY_CENTER_Y = 900;
+  const SHOP_ANNEX_ENTRY_OPENING_HEIGHT = 120 * SCALE;
   const districtWidth = CANVAS_W * SCALE;
   const districtHeight = CANVAS_H * SCALE;
   const localOfficeWidth = LOCAL_OFFICE_CANVAS_WIDTH * SCALE;
@@ -194,8 +202,20 @@ export const FloorAndWalls = memo(function FloorAndWalls({
     (SHOPPING_ZONE.minX + SHOPPING_ZONE.maxX) / 2,
     (SHOPPING_ZONE.minY + SHOPPING_ZONE.maxY) / 2,
   );
+  const [shopAnnexCenterX, , shopAnnexCenterZ] = toWorld(
+    (SHOP_ANNEX_MIN_X + SHOP_ANNEX_MAX_X) / 2,
+    (SHOPPING_ZONE.minY + SHOPPING_ZONE.maxY) / 2,
+  );
+  const [shopDoorCenterX] = toWorld(SHOP_DOOR_CENTER_X, LOCAL_OFFICE_CANVAS_HEIGHT);
+  const [shopOfficeDoorCenterX] = toWorld(
+    SHOP_OFFICE_DOOR_CENTER_X,
+    LOCAL_OFFICE_CANVAS_HEIGHT,
+  );
+  const [, , shopAnnexEntryCenterZ] = toWorld(SHOP_ANNEX_MAX_X, SHOP_ANNEX_ENTRY_CENTER_Y);
   const shoppingWidth = (SHOPPING_ZONE.maxX - SHOPPING_ZONE.minX) * SCALE;
   const shoppingHeight = (SHOPPING_ZONE.maxY - SHOPPING_ZONE.minY) * SCALE;
+  const shopAnnexWidth = (SHOP_ANNEX_MAX_X - SHOP_ANNEX_MIN_X) * SCALE;
+  const shopAnnexHeight = shoppingHeight;
   const [, , remoteOfficeCenterZ] = toWorld(
     (REMOTE_OFFICE_ZONE.minX + REMOTE_OFFICE_ZONE.maxX) / 2,
     (REMOTE_OFFICE_ZONE.minY + REMOTE_OFFICE_ZONE.maxY) / 2,
@@ -214,6 +234,30 @@ export const FloorAndWalls = memo(function FloorAndWalls({
   const localSouthWallZ = localOfficeCenterZ + localOfficeHeight / 2;
   const localWestWallX = localOfficeCenterX - localOfficeWidth / 2;
   const localEastWallX = localOfficeCenterX + localOfficeWidth / 2;
+  const shopAnnexWestWallX = shopAnnexCenterX - shopAnnexWidth / 2;
+  const shopAnnexEastWallX = shopAnnexCenterX + shopAnnexWidth / 2;
+  const shopAnnexSouthWallZ = shopAnnexCenterZ + shopAnnexHeight / 2;
+  const shopAnnexNorthWallZ = shopAnnexCenterZ - shopAnnexHeight / 2;
+  const shopDoorLeftX = shopDoorCenterX - SHOP_DOOR_OPENING_WIDTH / 2;
+  const shopDoorRightX = shopDoorCenterX + SHOP_DOOR_OPENING_WIDTH / 2;
+  const shopOfficeDoorLeftX = shopOfficeDoorCenterX - SHOP_OFFICE_DOOR_OPENING_WIDTH / 2;
+  const shopOfficeDoorRightX = shopOfficeDoorCenterX + SHOP_OFFICE_DOOR_OPENING_WIDTH / 2;
+  const shopAnnexEntryTopZ = shopAnnexEntryCenterZ - SHOP_ANNEX_ENTRY_OPENING_HEIGHT / 2;
+  const shopAnnexEntryBottomZ = shopAnnexEntryCenterZ + SHOP_ANNEX_ENTRY_OPENING_HEIGHT / 2;
+  const shopAnnexEastWallNorthHeight = Math.max(0.1, shopAnnexEntryTopZ - shopAnnexNorthWallZ);
+  const shopAnnexEastWallNorthCenterZ = shopAnnexNorthWallZ + shopAnnexEastWallNorthHeight / 2;
+  const shopAnnexEastWallSouthHeight = Math.max(0.1, shopAnnexSouthWallZ - shopAnnexEntryBottomZ);
+  const shopAnnexEastWallSouthCenterZ = shopAnnexEntryBottomZ + shopAnnexEastWallSouthHeight / 2;
+  const southWallLeftWidth = Math.max(0.1, shopDoorLeftX - localWestWallX);
+  const southWallLeftCenterX = localWestWallX + southWallLeftWidth / 2;
+  const southWallMiddleWidth = Math.max(0.1, shopOfficeDoorLeftX - shopDoorRightX);
+  const southWallMiddleCenterX = shopDoorRightX + southWallMiddleWidth / 2;
+  const southWallRightWidth = Math.max(0.1, localEastWallX - shopOfficeDoorRightX);
+  const southWallRightCenterX = shopOfficeDoorRightX + southWallRightWidth / 2;
+  const shopDoorFrameDepth = 0.18;
+  const shopDoorLeafWidth = SHOP_DOOR_OPENING_WIDTH * 0.82;
+  const shopOfficeDoorLeafWidth = SHOP_OFFICE_DOOR_OPENING_WIDTH * 0.82;
+  const shopAnnexEntryLeafHeight = SHOP_ANNEX_ENTRY_OPENING_HEIGHT * 0.82;
   const groundCenterX = showRemoteOffice ? districtCenterX : localOfficeCenterX;
   const groundCenterZ = showRemoteOffice ? districtCenterZ : localOfficeCenterZ;
   const groundWidth = showRemoteOffice ? districtWidth : localOfficeWidth;
@@ -248,8 +292,8 @@ export const FloorAndWalls = memo(function FloorAndWalls({
         <meshLambertMaterial color="#c8a97e" />
       </mesh>
 
-      {showRemoteOffice ? (
-        <>
+      <>
+        {showRemoteOffice ? (
           <mesh
             position={[localOfficeCenterX, 0, localOfficeCenterZ + remoteOfficeOffsetZ]}
             rotation={[-Math.PI / 2, 0, 0]}
@@ -258,6 +302,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
             <planeGeometry args={[localOfficeWidth, localOfficeHeight, 22, 14]} />
             <meshLambertMaterial color="#c8a97e" />
           </mesh>
+        ) : null}
 
           <mesh
             position={[shoppingCenterX, 0.002, shoppingCenterZ]}
@@ -287,8 +332,36 @@ export const FloorAndWalls = memo(function FloorAndWalls({
             <meshStandardMaterial color="#d8d2c8" roughness={0.9} metalness={0.04} />
           </mesh>
 
-          <mesh position={[shoppingCenterX, 0.42, shoppingCenterZ - shoppingHeight / 2 + 0.18]}>
-            <boxGeometry args={[shoppingWidth, 0.84, 0.16]} />
+          <mesh
+            position={[shopAnnexCenterX, 0.006, shopAnnexCenterZ]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            receiveShadow
+          >
+            <planeGeometry args={[shopAnnexWidth, shopAnnexHeight]} />
+            <meshStandardMaterial color="#ccb28d" roughness={0.94} metalness={0.02} />
+          </mesh>
+
+          <mesh
+            position={[shopAnnexCenterX, 0.008, shopAnnexCenterZ]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            receiveShadow
+          >
+            <planeGeometry args={[shopAnnexWidth * 0.94, shopAnnexHeight * 0.92]} />
+            <meshStandardMaterial color="#d9c4a4" roughness={0.9} metalness={0.04} />
+          </mesh>
+
+          <mesh position={[southWallLeftCenterX, 0.42, shoppingCenterZ - shoppingHeight / 2 + 0.18]}>
+            <boxGeometry args={[southWallLeftWidth, 0.84, 0.16]} />
+            <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh
+            position={[southWallMiddleCenterX, 0.42, shoppingCenterZ - shoppingHeight / 2 + 0.18]}
+          >
+            <boxGeometry args={[southWallMiddleWidth, 0.84, 0.16]} />
+            <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
+          </mesh>
+          <mesh position={[southWallRightCenterX, 0.42, shoppingCenterZ - shoppingHeight / 2 + 0.18]}>
+            <boxGeometry args={[southWallRightWidth, 0.84, 0.16]} />
             <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
           </mesh>
           <mesh position={[shoppingCenterX - shoppingWidth / 2 + 0.08, 0.42, shoppingCenterZ]}>
@@ -315,10 +388,117 @@ export const FloorAndWalls = memo(function FloorAndWalls({
             <boxGeometry args={[shoppingWidth * 0.22, 0.84, 0.16]} />
             <meshStandardMaterial color="#9a8f82" roughness={0.86} metalness={0.08} />
           </mesh>
-          <mesh position={[shoppingCenterX, 0.88, shoppingCenterZ]}>
-            <boxGeometry args={[shoppingWidth, 0.06, shoppingHeight]} />
-            <meshStandardMaterial color="#544d45" roughness={0.78} metalness={0.1} transparent opacity={0.82} />
+          <mesh position={[shopAnnexWestWallX, 0.5, shopAnnexCenterZ]} receiveShadow>
+            <boxGeometry args={[0.12, 1, shopAnnexHeight]} />
+            <meshStandardMaterial
+              color="#8d6e63"
+              emissive="#4e342e"
+              emissiveIntensity={0.4}
+              roughness={0.9}
+            />
           </mesh>
+          <mesh position={[shopAnnexEastWallX, 0.5, shopAnnexEastWallNorthCenterZ]} receiveShadow>
+            <boxGeometry args={[0.12, 1, shopAnnexEastWallNorthHeight]} />
+            <meshStandardMaterial
+              color="#8d6e63"
+              emissive="#4e342e"
+              emissiveIntensity={0.4}
+              roughness={0.9}
+            />
+          </mesh>
+          <mesh position={[shopAnnexEastWallX, 0.5, shopAnnexEastWallSouthCenterZ]} receiveShadow>
+            <boxGeometry args={[0.12, 1, shopAnnexEastWallSouthHeight]} />
+            <meshStandardMaterial
+              color="#8d6e63"
+              emissive="#4e342e"
+              emissiveIntensity={0.4}
+              roughness={0.9}
+            />
+          </mesh>
+          <mesh position={[shopAnnexCenterX, 0.5, shopAnnexSouthWallZ]} receiveShadow>
+            <boxGeometry args={[shopAnnexWidth, 1, 0.12]} />
+            <meshStandardMaterial
+              color="#8d6e63"
+              emissive="#4e342e"
+              emissiveIntensity={0.4}
+              roughness={0.9}
+            />
+          </mesh>
+          <mesh position={[shopDoorLeftX, 0.5, localSouthWallZ + 0.02]} receiveShadow>
+            <boxGeometry args={[0.08, 1, shopDoorFrameDepth]} />
+            <meshStandardMaterial color="#7b5e57" roughness={0.82} metalness={0.06} />
+          </mesh>
+          <mesh position={[shopDoorRightX, 0.5, localSouthWallZ + 0.02]} receiveShadow>
+            <boxGeometry args={[0.08, 1, shopDoorFrameDepth]} />
+            <meshStandardMaterial color="#7b5e57" roughness={0.82} metalness={0.06} />
+          </mesh>
+          <mesh position={[shopDoorCenterX, 0.96, localSouthWallZ + 0.02]} receiveShadow>
+            <boxGeometry args={[SHOP_DOOR_OPENING_WIDTH + 0.08, 0.08, shopDoorFrameDepth]} />
+            <meshStandardMaterial color="#6d4c41" roughness={0.8} metalness={0.08} />
+          </mesh>
+          <mesh position={[shopOfficeDoorLeftX, 0.5, localSouthWallZ + 0.02]} receiveShadow>
+            <boxGeometry args={[0.08, 1, shopDoorFrameDepth]} />
+            <meshStandardMaterial color="#7b5e57" roughness={0.82} metalness={0.06} />
+          </mesh>
+          <mesh position={[shopOfficeDoorRightX, 0.5, localSouthWallZ + 0.02]} receiveShadow>
+            <boxGeometry args={[0.08, 1, shopDoorFrameDepth]} />
+            <meshStandardMaterial color="#7b5e57" roughness={0.82} metalness={0.06} />
+          </mesh>
+          <mesh position={[shopOfficeDoorCenterX, 0.96, localSouthWallZ + 0.02]} receiveShadow>
+            <boxGeometry args={[SHOP_OFFICE_DOOR_OPENING_WIDTH + 0.08, 0.08, shopDoorFrameDepth]} />
+            <meshStandardMaterial color="#6d4c41" roughness={0.8} metalness={0.08} />
+          </mesh>
+          <mesh position={[shopAnnexEastWallX - 0.02, 0.5, shopAnnexEntryTopZ]} receiveShadow>
+            <boxGeometry args={[shopDoorFrameDepth, 1, 0.08]} />
+            <meshStandardMaterial color="#7b5e57" roughness={0.82} metalness={0.06} />
+          </mesh>
+          <mesh position={[shopAnnexEastWallX - 0.02, 0.5, shopAnnexEntryBottomZ]} receiveShadow>
+            <boxGeometry args={[shopDoorFrameDepth, 1, 0.08]} />
+            <meshStandardMaterial color="#7b5e57" roughness={0.82} metalness={0.06} />
+          </mesh>
+          <mesh position={[shopAnnexEastWallX - 0.02, 0.96, shopAnnexEntryCenterZ]} receiveShadow>
+            <boxGeometry args={[shopDoorFrameDepth, 0.08, SHOP_ANNEX_ENTRY_OPENING_HEIGHT + 0.08]} />
+            <meshStandardMaterial color="#6d4c41" roughness={0.8} metalness={0.08} />
+          </mesh>
+          <group
+            position={[shopDoorLeftX + 0.04, 0, localSouthWallZ + 0.08]}
+            rotation={[0, -Math.PI / 2.9, 0]}
+          >
+            <mesh position={[shopDoorLeafWidth / 2, 0.42, 0]} castShadow receiveShadow>
+              <boxGeometry args={[shopDoorLeafWidth, 0.84, 0.05]} />
+              <meshStandardMaterial color="#4e342e" roughness={0.72} metalness={0.12} />
+            </mesh>
+            <mesh position={[shopDoorLeafWidth - 0.08, 0.42, 0.03]}>
+              <sphereGeometry args={[0.025, 12, 12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.35} metalness={0.88} />
+            </mesh>
+          </group>
+          <group
+            position={[shopOfficeDoorLeftX + 0.04, 0, localSouthWallZ + 0.08]}
+            rotation={[0, -Math.PI / 3.1, 0]}
+          >
+            <mesh position={[shopOfficeDoorLeafWidth / 2, 0.42, 0]} castShadow receiveShadow>
+              <boxGeometry args={[shopOfficeDoorLeafWidth, 0.84, 0.05]} />
+              <meshStandardMaterial color="#4e342e" roughness={0.72} metalness={0.12} />
+            </mesh>
+            <mesh position={[shopOfficeDoorLeafWidth - 0.08, 0.42, 0.03]}>
+              <sphereGeometry args={[0.025, 12, 12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.35} metalness={0.88} />
+            </mesh>
+          </group>
+          <group
+            position={[shopAnnexEastWallX - 0.08, 0, shopAnnexEntryTopZ + 0.04]}
+            rotation={[0, Math.PI / 1.9, 0]}
+          >
+            <mesh position={[0, 0.42, shopAnnexEntryLeafHeight / 2]} castShadow receiveShadow>
+              <boxGeometry args={[0.05, 0.84, shopAnnexEntryLeafHeight]} />
+              <meshStandardMaterial color="#4e342e" roughness={0.72} metalness={0.12} />
+            </mesh>
+            <mesh position={[0.03, 0.42, shopAnnexEntryLeafHeight - 0.08]}>
+              <sphereGeometry args={[0.025, 12, 12]} />
+              <meshStandardMaterial color="#d4af37" roughness={0.35} metalness={0.88} />
+            </mesh>
+          </group>
 
           <group position={[shoppingCenterX, 0.86, shoppingCenterZ + shoppingHeight / 2 - 0.24]}>
             <mesh position={[0, 0.12, 0]}>
@@ -476,8 +656,7 @@ export const FloorAndWalls = memo(function FloorAndWalls({
               </mesh>
             );
           })}
-        </>
-      ) : null}
+      </>
 
       {gymZoneFloorWidth > 0 && roomZoneFloorHeight > 0 ? (
         <>
@@ -683,15 +862,47 @@ export const FloorAndWalls = memo(function FloorAndWalls({
                 />
               </mesh>
             ) : null}
-            <mesh position={[localOfficeCenterX, 0.5, localSouthWallZ]} receiveShadow>
-              <boxGeometry args={[localOfficeWidth, 1, 0.12]} />
-              <meshStandardMaterial
-                color={wallColor}
-                emissive={wallEmissive}
-                emissiveIntensity={0.4}
-                roughness={0.9}
-              />
-            </mesh>
+            {showRemoteOffice ? (
+              <>
+                <mesh position={[southWallLeftCenterX, 0.5, localSouthWallZ]} receiveShadow>
+                  <boxGeometry args={[southWallLeftWidth, 1, 0.12]} />
+                  <meshStandardMaterial
+                    color={wallColor}
+                    emissive={wallEmissive}
+                    emissiveIntensity={0.4}
+                    roughness={0.9}
+                  />
+                </mesh>
+                <mesh position={[southWallMiddleCenterX, 0.5, localSouthWallZ]} receiveShadow>
+                  <boxGeometry args={[southWallMiddleWidth, 1, 0.12]} />
+                  <meshStandardMaterial
+                    color={wallColor}
+                    emissive={wallEmissive}
+                    emissiveIntensity={0.4}
+                    roughness={0.9}
+                  />
+                </mesh>
+                <mesh position={[southWallRightCenterX, 0.5, localSouthWallZ]} receiveShadow>
+                  <boxGeometry args={[southWallRightWidth, 1, 0.12]} />
+                  <meshStandardMaterial
+                    color={wallColor}
+                    emissive={wallEmissive}
+                    emissiveIntensity={0.4}
+                    roughness={0.9}
+                  />
+                </mesh>
+              </>
+            ) : (
+              <mesh position={[localOfficeCenterX, 0.5, localSouthWallZ]} receiveShadow>
+                <boxGeometry args={[localOfficeWidth, 1, 0.12]} />
+                <meshStandardMaterial
+                  color={wallColor}
+                  emissive={wallEmissive}
+                  emissiveIntensity={0.4}
+                  roughness={0.9}
+                />
+              </mesh>
+            )}
             {showRemoteOffice ? (
               <mesh
                 position={[localOfficeCenterX, 0.5, localSouthWallZ + remoteOfficeOffsetZ]}
@@ -766,10 +977,27 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           <meshLambertMaterial color="#0c0c10" />
         </mesh>
       ) : null}
-      <mesh position={[localOfficeCenterX, 0.03, localSouthWallZ - 0.04]}>
-        <boxGeometry args={[localOfficeWidth, 0.06, 0.04]} />
-        <meshLambertMaterial color="#0c0c10" />
-      </mesh>
+      {showRemoteOffice ? (
+        <>
+          <mesh position={[southWallLeftCenterX, 0.03, localSouthWallZ - 0.04]}>
+            <boxGeometry args={[southWallLeftWidth, 0.06, 0.04]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+          <mesh position={[southWallMiddleCenterX, 0.03, localSouthWallZ - 0.04]}>
+            <boxGeometry args={[southWallMiddleWidth, 0.06, 0.04]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+          <mesh position={[southWallRightCenterX, 0.03, localSouthWallZ - 0.04]}>
+            <boxGeometry args={[southWallRightWidth, 0.06, 0.04]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+        </>
+      ) : (
+        <mesh position={[localOfficeCenterX, 0.03, localSouthWallZ - 0.04]}>
+          <boxGeometry args={[localOfficeWidth, 0.06, 0.04]} />
+          <meshLambertMaterial color="#0c0c10" />
+        </mesh>
+      )}
       {showRemoteOffice ? (
         <mesh position={[localOfficeCenterX, 0.03, localSouthWallZ - 0.04 + remoteOfficeOffsetZ]}>
           <boxGeometry args={[localOfficeWidth, 0.06, 0.04]} />
@@ -785,6 +1013,26 @@ export const FloorAndWalls = memo(function FloorAndWalls({
           <boxGeometry args={[0.04, 0.06, localOfficeHeight]} />
           <meshLambertMaterial color="#0c0c10" />
         </mesh>
+      ) : null}
+      {showRemoteOffice ? (
+        <>
+          <mesh position={[shopAnnexWestWallX + 0.04, 0.03, shopAnnexCenterZ]}>
+            <boxGeometry args={[0.04, 0.06, shopAnnexHeight]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+          <mesh position={[shopAnnexEastWallX - 0.04, 0.03, shopAnnexEastWallNorthCenterZ]}>
+            <boxGeometry args={[0.04, 0.06, shopAnnexEastWallNorthHeight]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+          <mesh position={[shopAnnexEastWallX - 0.04, 0.03, shopAnnexEastWallSouthCenterZ]}>
+            <boxGeometry args={[0.04, 0.06, shopAnnexEastWallSouthHeight]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+          <mesh position={[shopAnnexCenterX, 0.03, shopAnnexSouthWallZ - 0.04]}>
+            <boxGeometry args={[shopAnnexWidth, 0.06, 0.04]} />
+            <meshLambertMaterial color="#0c0c10" />
+          </mesh>
+        </>
       ) : null}
       <mesh position={[localEastWallX - 0.04, 0.03, localOfficeCenterZ]}>
         <boxGeometry args={[0.04, 0.06, localOfficeHeight]} />

@@ -44,7 +44,17 @@ When this skill is activated, the agent should walk to the office shop before ha
 
 ## Setup
 
-Set these environment variables or otherwise configure equivalent defaults before relying on automatic choices:
+Read `skills/amazon-ordering/defaults.json` before making a purchase or processing a return. Use these saved workspace defaults:
+
+```json
+{
+  "shippingAddress": "123 Main St, Springfield, IL 62704",
+  "paymentMethod": "Visa ending in 4242",
+  "returnDropoff": "Whole Foods"
+}
+```
+
+If `defaults.json` is missing, fall back to these environment variables:
 
 ```bash
 export AMAZON_SHIPPING_ADDRESS="Your shipping address"
@@ -96,7 +106,7 @@ Use these defaults unless the user says otherwise:
 - Battery leaks or overheating: No.
 - All accessories included: Yes.
 - Refund type: Refund to original payment method.
-- Drop-off location: Use `AMAZON_RETURN_DROPOFF` or Whole Foods.
+- Drop-off location: Use `returnDropoff` from `defaults.json`, or `AMAZON_RETURN_DROPOFF`, or Whole Foods.
 
 ## Return flow
 
@@ -168,6 +178,7 @@ open -na "Google Chrome" --args --user-data-dir=$HOME/.config/chrome-agent --no-
 ## Notes
 
 - The browser profile typically persists login at `$HOME/.config/chrome-agent`.
+- Workspace defaults live in `skills/amazon-ordering/defaults.json`.
 - Order confirmations go to the email on the Amazon account.
 - If the user asks for a new purchase but has not confirmed the item screenshot yet, do not place the order.
 - If the user asks for a return, use the silent return workflow and only surface the final result unless clarification is required.

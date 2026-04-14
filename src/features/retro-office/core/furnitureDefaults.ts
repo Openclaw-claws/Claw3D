@@ -16,6 +16,7 @@ import {
   hasGymRoomMigrationApplied,
   hasPhoneBoothMigrationApplied,
   hasQaLabMigrationApplied,
+  hasShopAnnexShelvesMigrationApplied,
   hasSmsBoothMigrationApplied,
   hasServerRoomMigrationApplied,
 } from "@/features/retro-office/core/persistence";
@@ -62,9 +63,9 @@ const DEFAULT_JUKEBOX: FurnitureSeed = {
 
 const DEFAULT_SHOP: FurnitureSeed = {
   type: "shop",
-  x: 140,
-  y: 820,
-  facing: 0,
+  x: 320,
+  y: 120,
+  facing: 90,
 };
 
 const DEFAULT_KANBAN_BOARD: FurnitureSeed = {
@@ -119,18 +120,6 @@ const DEFAULT_DINING_ITEMS: FurnitureSeed[] = [
 const DEFAULT_SHOPPING_STRIP_ITEMS: FurnitureSeed[] = [
   { type: "table_rect", x: 110, y: 780, w: 140, h: 42, facing: 0 },
   { type: "table_rect", x: 110, y: 940, w: 140, h: 42, facing: 0 },
-  { type: "bookshelf", x: 390, y: 770, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 390, y: 930, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 600, y: 770, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 600, y: 930, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 810, y: 770, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 810, y: 930, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 1020, y: 770, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 1020, y: 930, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 1230, y: 770, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 1230, y: 930, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 1440, y: 770, w: 70, h: 130, facing: 0 },
-  { type: "bookshelf", x: 1440, y: 930, w: 70, h: 130, facing: 0 },
   { type: "table_rect", x: 1600, y: 780, w: 120, h: 38, facing: 0 },
   { type: "table_rect", x: 1600, y: 840, w: 120, h: 38, facing: 0 },
   { type: "table_rect", x: 1600, y: 900, w: 120, h: 38, facing: 0 },
@@ -143,6 +132,62 @@ const DEFAULT_SHOPPING_STRIP_ITEMS: FurnitureSeed[] = [
   { type: "plant", x: 1020, y: 1040 },
   { type: "plant", x: 1260, y: 1040 },
   { type: "plant", x: 1500, y: 1040 },
+];
+
+const LEGACY_SHOPPING_STRIP_SHELVES: FurnitureSeed[] = [
+  { type: "bookshelf", x: 390, y: 770, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 390, y: 930, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 600, y: 770, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 600, y: 930, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 810, y: 770, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 810, y: 930, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 1020, y: 770, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 1020, y: 930, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 1230, y: 770, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 1230, y: 930, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 1440, y: 770, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 1440, y: 930, w: 70, h: 130, facing: 0 },
+];
+
+const DEFAULT_GROCERY_ROOM_ITEMS: FurnitureSeed[] = [
+  { type: "grocery_shelf", x: 270, y: 56, w: 70, h: 86, facing: 90 },
+  { type: "grocery_shelf", x: 270, y: 156, w: 70, h: 86, facing: 90 },
+  { type: "grocery_shelf", x: 336, y: 52, w: 70, h: 84, facing: 0 },
+  { type: "grocery_shelf", x: 336, y: 172, w: 70, h: 84, facing: 180 },
+];
+const LEGACY_SHOP_ANNEX_BOOKSHELVES: FurnitureSeed[] = [
+  { type: "bookshelf", x: 20, y: 730, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 260, y: 730, w: 70, h: 130, facing: 0 },
+  { type: "bookshelf", x: 20, y: 930, w: 70, h: 130, facing: 180 },
+  { type: "bookshelf", x: 260, y: 930, w: 70, h: 130, facing: 180 },
+  { type: "bookshelf", x: 10, y: 790, w: 70, h: 130, facing: 90 },
+  { type: "bookshelf", x: 10, y: 940, w: 70, h: 130, facing: 90 },
+  { type: "bookshelf", x: 280, y: 790, w: 70, h: 130, facing: 270 },
+  { type: "bookshelf", x: 280, y: 940, w: 70, h: 130, facing: 270 },
+];
+const LEGACY_SHOP_ANNEX_GROCERY_SHELVES: FurnitureSeed[] = [
+  { type: "grocery_shelf", x: 20, y: 730, w: 70, h: 130, facing: 0 },
+  { type: "grocery_shelf", x: 260, y: 730, w: 70, h: 130, facing: 0 },
+  { type: "grocery_shelf", x: 20, y: 930, w: 70, h: 130, facing: 180 },
+  { type: "grocery_shelf", x: 260, y: 930, w: 70, h: 130, facing: 180 },
+  { type: "grocery_shelf", x: 10, y: 790, w: 70, h: 130, facing: 90 },
+  { type: "grocery_shelf", x: 10, y: 940, w: 70, h: 130, facing: 90 },
+  { type: "grocery_shelf", x: 280, y: 790, w: 70, h: 130, facing: 270 },
+  { type: "grocery_shelf", x: 280, y: 940, w: 70, h: 130, facing: 270 },
+];
+const LEGACY_ART_ROOM_CONTENTS: FurnitureSeed[] = [
+  { type: "easel", x: 278, y: 84, facing: 90 },
+  { type: "easel", x: 278, y: 158, facing: 90 },
+  { type: "plant", x: 280, y: 60 },
+  { type: "plant", x: 280, y: 240 },
+  { type: "couch", x: 270, y: 90, w: 40, h: 80, vertical: true, facing: 180 },
+];
+const LEGACY_GROCERY_ROOM_ITEMS: FurnitureSeed[] = [
+  { type: "grocery_shelf", x: 270, y: 74, w: 70, h: 96, facing: 90 },
+  { type: "grocery_shelf", x: 338, y: 52, w: 70, h: 92, facing: 0 },
+  { type: "grocery_shelf", x: 338, y: 166, w: 70, h: 92, facing: 180 },
+  { type: "plant", x: 392, y: 60 },
+  { type: "plant", x: 392, y: 232 },
 ];
 
 const DEFAULT_SERVER_ROOM_ITEMS: FurnitureSeed[] = [
@@ -448,10 +493,7 @@ const DEFAULT_ART_ROOM_ITEMS: FurnitureSeed[] = [
   { type: "wall", x: 430, y: 40, w: 8, h: 90 },
   { type: "door", x: 420, y: 150, w: 40, h: 8, facing: 90 },
   { type: "wall", x: 430, y: 170, w: 8, h: 100 },
-  { type: "easel", x: 278, y: 84, facing: 90 },
-  { type: "easel", x: 278, y: 158, facing: 90 },
-  { type: "plant", x: 280, y: 60 },
-  { type: "plant", x: 280, y: 240 },
+  ...DEFAULT_GROCERY_ROOM_ITEMS,
 ];
 
 const DEFAULT_FURNITURE: FurnitureSeed[] = [
@@ -464,7 +506,6 @@ const DEFAULT_FURNITURE: FurnitureSeed[] = [
   { type: "chair", x: 60, y: 80, facing: 60 },
   { type: "chair", x: 550, y: 50, facing: 0 },
   { type: "bookshelf", x: 600, y: 30, w: 80, h: 120 },
-  { type: "couch", x: 270, y: 90, w: 40, h: 80, vertical: true, facing: 180 },
   { type: "fridge", x: 1050, y: 20, w: 40, h: 80 },
   { type: "stove", x: 920, y: 20 },
   { type: "cabinet", x: 980, y: 30, w: 40, h: 40 },
@@ -612,6 +653,24 @@ const PREVIOUS_QA_LAB_SIGNATURES = new Set(
 const QA_LAB_SIGNATURES = new Set(
   DEFAULT_QA_LAB_ITEMS.map(createFurnitureSignature),
 );
+const LEGACY_SHOPPING_STRIP_SHELF_SIGNATURES = new Set(
+  LEGACY_SHOPPING_STRIP_SHELVES.map(createFurnitureSignature),
+);
+const LEGACY_SHOP_ANNEX_BOOKSHELF_SIGNATURES = new Set(
+  LEGACY_SHOP_ANNEX_BOOKSHELVES.map(createFurnitureSignature),
+);
+const LEGACY_SHOP_ANNEX_GROCERY_SHELF_SIGNATURES = new Set(
+  LEGACY_SHOP_ANNEX_GROCERY_SHELVES.map(createFurnitureSignature),
+);
+const LEGACY_ART_ROOM_CONTENT_SIGNATURES = new Set(
+  LEGACY_ART_ROOM_CONTENTS.map(createFurnitureSignature),
+);
+const LEGACY_GROCERY_ROOM_ITEM_SIGNATURES = new Set(
+  LEGACY_GROCERY_ROOM_ITEMS.map(createFurnitureSignature),
+);
+const GROCERY_ROOM_ITEM_SIGNATURES = new Set(
+  DEFAULT_GROCERY_ROOM_ITEMS.map(createFurnitureSignature),
+);
 
 const hasSignature = (items: FurnitureItem[], signatures: Set<string>) =>
   items.some((item) => signatures.has(createFurnitureSignature(item)));
@@ -649,13 +708,48 @@ export const ensureOfficeShop = (items: FurnitureItem[]): FurnitureItem[] => {
   const nextItems = items.map((item) => {
     if (item.type !== "shop") return item;
     found = true;
-    if (item.x === 520 && item.y === 180) {
+    if (
+      (item.x === 520 && item.y === 180) ||
+      (item.x === 140 && item.y === 820)
+    ) {
       return { ...item, x: DEFAULT_SHOP.x, y: DEFAULT_SHOP.y, facing: DEFAULT_SHOP.facing };
     }
     return item;
   });
   if (found) return nextItems;
   return [...nextItems, { ...DEFAULT_SHOP, _uid: nextUid() }];
+};
+
+export const ensureOfficeShoppingStripShelves = (
+  items: FurnitureItem[],
+): FurnitureItem[] =>
+  items.filter(
+    (item) => !LEGACY_SHOPPING_STRIP_SHELF_SIGNATURES.has(createFurnitureSignature(item)),
+  );
+
+export const ensureOfficeShopAnnexShelves = (
+  items: FurnitureItem[],
+): FurnitureItem[] => {
+  const withoutLegacyShelves = replaceBySignatureSet(
+    replaceBySignatureSet(
+      replaceBySignatureSet(
+        replaceBySignatureSet(
+          ensureOfficeShoppingStripShelves(items),
+          LEGACY_SHOP_ANNEX_BOOKSHELF_SIGNATURES,
+        ),
+        LEGACY_SHOP_ANNEX_GROCERY_SHELF_SIGNATURES,
+      ),
+      LEGACY_ART_ROOM_CONTENT_SIGNATURES,
+    ),
+    LEGACY_GROCERY_ROOM_ITEM_SIGNATURES,
+  );
+  const hasCurrentRoomItems = hasAllSignatures(withoutLegacyShelves, GROCERY_ROOM_ITEM_SIGNATURES);
+  if (hasCurrentRoomItems) return withoutLegacyShelves;
+  if (hasShopAnnexShelvesMigrationApplied()) return withoutLegacyShelves;
+  return [
+    ...withoutLegacyShelves,
+    ...DEFAULT_GROCERY_ROOM_ITEMS.map((item) => ({ ...item, _uid: nextUid() })),
+  ];
 };
 
 export const ensureOfficeKanbanBoard = (items: FurnitureItem[]): FurnitureItem[] => {

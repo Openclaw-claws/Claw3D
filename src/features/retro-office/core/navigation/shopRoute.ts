@@ -1,4 +1,3 @@
-import { SHOPPING_ZONE } from "@/features/retro-office/core/district";
 import { getItemBaseSize } from "@/features/retro-office/core/geometry";
 import type {
   FacingPoint,
@@ -6,22 +5,29 @@ import type {
   ShopRoute,
 } from "@/features/retro-office/core/types";
 
+const GROCERY_ROOM_BOUNDS = {
+  minX: 260,
+  maxX: 438,
+  minY: 40,
+  maxY: 270,
+};
+
 export const SHOP_ENTRY_TARGET: FacingPoint = {
-  x: 900,
-  y: SHOPPING_ZONE.minY + 40,
-  facing: 0,
+  x: 450,
+  y: 150,
+  facing: Math.PI,
 };
 
 export const SHOP_AISLE_TARGET: FacingPoint = {
-  x: 980,
-  y: 910,
-  facing: 0,
+  x: 360,
+  y: 150,
+  facing: Math.PI,
 };
 
 export const SHOP_TARGET: FacingPoint = {
-  x: 180,
-  y: 920,
-  facing: 0,
+  x: 360,
+  y: 220,
+  facing: Math.PI,
 };
 
 export const resolveShopRoute = (
@@ -54,9 +60,7 @@ export const resolveShopRoute = (
     };
   }
 
-  const closeToAisle =
-    y >= SHOPPING_ZONE.minY + 70 &&
-    Math.hypot(x - SHOP_AISLE_TARGET.x, y - SHOP_AISLE_TARGET.y) < 90;
+  const closeToAisle = Math.hypot(x - SHOP_AISLE_TARGET.x, y - SHOP_AISLE_TARGET.y) < 80;
   if (closeToAisle) {
     return {
       stage: "checkout",
@@ -67,8 +71,11 @@ export const resolveShopRoute = (
   }
 
   const enteredStore =
-    y >= SHOP_ENTRY_TARGET.y - 10 ||
-    Math.hypot(x - SHOP_ENTRY_TARGET.x, y - SHOP_ENTRY_TARGET.y) < 70;
+    (x >= GROCERY_ROOM_BOUNDS.minX &&
+      x <= GROCERY_ROOM_BOUNDS.maxX &&
+      y >= GROCERY_ROOM_BOUNDS.minY &&
+      y <= GROCERY_ROOM_BOUNDS.maxY) ||
+    Math.hypot(x - SHOP_ENTRY_TARGET.x, y - SHOP_ENTRY_TARGET.y) < 80;
   if (enteredStore) {
     return {
       stage: "aisle",
