@@ -284,13 +284,7 @@ const getLatestShopRequestForAgent = (agent: AgentState): ShopRequestForAgent | 
       sequenceKey: entry.sequenceKey,
     };
   }
-  const fallback = agent.lastUserMessage?.trim() ?? "";
-  if (!fallback || resolveOfficeIntentSnapshot(fallback).shop !== "shop") return null;
-  return {
-    text: fallback,
-    requestKey: `${agent.sessionKey}:fallback-shop:${fallback}`,
-    sequenceKey: Number.NEGATIVE_INFINITY,
-  };
+  return null;
 };
 
 const findLatestShopCompletionForAgent = (

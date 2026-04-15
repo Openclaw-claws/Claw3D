@@ -1,4 +1,3 @@
-import { getItemBaseSize } from "@/features/retro-office/core/geometry";
 import type {
   FacingPoint,
   FurnitureItem,
@@ -13,7 +12,7 @@ const GROCERY_ROOM_BOUNDS = {
 };
 
 export const SHOP_ENTRY_TARGET: FacingPoint = {
-  x: 450,
+  x: 395,
   y: 150,
   facing: Math.PI,
 };
@@ -24,11 +23,13 @@ export const SHOP_AISLE_TARGET: FacingPoint = {
   facing: Math.PI,
 };
 
-export const SHOP_TARGET: FacingPoint = {
-  x: 360,
-  y: 220,
-  facing: Math.PI,
+export const SHOP_CHECKOUT_TARGET: FacingPoint = {
+  x: 338,
+  y: 150,
+  facing: 0,
 };
+
+export const SHOP_TARGET = SHOP_CHECKOUT_TARGET;
 
 export const resolveShopRoute = (
   item: FurnitureItem | null | undefined,
@@ -38,25 +39,19 @@ export const resolveShopRoute = (
   if (!item) {
     return {
       stage: "checkout",
-      targetX: SHOP_TARGET.x,
-      targetY: SHOP_TARGET.y,
-      facing: SHOP_TARGET.facing,
+      targetX: SHOP_CHECKOUT_TARGET.x,
+      targetY: SHOP_CHECKOUT_TARGET.y,
+      facing: SHOP_CHECKOUT_TARGET.facing,
     };
   }
-  const { width, height } = getItemBaseSize(item);
-  const checkoutTarget = {
-    x: item.x + width / 2,
-    y: item.y + height + 44,
-    facing: 0,
-  };
   const closeToCheckout =
-    Math.hypot(x - checkoutTarget.x, y - checkoutTarget.y) < 44;
+    Math.hypot(x - SHOP_CHECKOUT_TARGET.x, y - SHOP_CHECKOUT_TARGET.y) < 44;
   if (closeToCheckout) {
     return {
       stage: "checkout",
-      targetX: checkoutTarget.x,
-      targetY: checkoutTarget.y,
-      facing: checkoutTarget.facing,
+      targetX: SHOP_CHECKOUT_TARGET.x,
+      targetY: SHOP_CHECKOUT_TARGET.y,
+      facing: SHOP_CHECKOUT_TARGET.facing,
     };
   }
 
@@ -64,9 +59,9 @@ export const resolveShopRoute = (
   if (closeToAisle) {
     return {
       stage: "checkout",
-      targetX: checkoutTarget.x,
-      targetY: checkoutTarget.y,
-      facing: checkoutTarget.facing,
+      targetX: SHOP_CHECKOUT_TARGET.x,
+      targetY: SHOP_CHECKOUT_TARGET.y,
+      facing: SHOP_CHECKOUT_TARGET.facing,
     };
   }
 

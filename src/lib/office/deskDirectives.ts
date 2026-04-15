@@ -261,9 +261,11 @@ const resolveOfficeShopDirectiveFromNormalized = (
   }
 
   const shopIntentPatterns = [
-    /\bbuy\s+on\s+amazon\b/,
-    /\border\s+on\s+amazon\b/,
+    /\bbuy(?:\s+\w+){0,3}\s+on\s+amazon\b/,
+    /\border(?:\s+\w+){0,3}\s+on\s+amazon\b/,
     /\breorder\s+on\s+amazon\b/,
+    /\bshop\s+on\s+amazon\b/,
+    /\bpurchase(?:\s+\w+){0,3}\s+on\s+amazon\b/,
     /\bamazon\s+order\b/,
     /\bamazon\s+shopping\b/,
     /\bgo\s+shopping\b/,

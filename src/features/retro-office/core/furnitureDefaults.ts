@@ -154,6 +154,9 @@ const DEFAULT_GROCERY_ROOM_ITEMS: FurnitureSeed[] = [
   { type: "grocery_shelf", x: 270, y: 156, w: 70, h: 86, facing: 90 },
   { type: "grocery_shelf", x: 336, y: 52, w: 70, h: 84, facing: 0 },
   { type: "grocery_shelf", x: 336, y: 172, w: 70, h: 84, facing: 180 },
+  { type: "table_rect", x: 312, y: 106, w: 54, h: 26, facing: 90 },
+  { type: "computer", x: 324, y: 108, facing: 90 },
+  { type: "keyboard", x: 330, y: 122, facing: 90 },
 ];
 const LEGACY_SHOP_ANNEX_BOOKSHELVES: FurnitureSeed[] = [
   { type: "bookshelf", x: 20, y: 730, w: 70, h: 130, facing: 0 },
@@ -668,9 +671,6 @@ const LEGACY_ART_ROOM_CONTENT_SIGNATURES = new Set(
 const LEGACY_GROCERY_ROOM_ITEM_SIGNATURES = new Set(
   LEGACY_GROCERY_ROOM_ITEMS.map(createFurnitureSignature),
 );
-const GROCERY_ROOM_ITEM_SIGNATURES = new Set(
-  DEFAULT_GROCERY_ROOM_ITEMS.map(createFurnitureSignature),
-);
 
 const hasSignature = (items: FurnitureItem[], signatures: Set<string>) =>
   items.some((item) => signatures.has(createFurnitureSignature(item)));
@@ -743,12 +743,17 @@ export const ensureOfficeShopAnnexShelves = (
     ),
     LEGACY_GROCERY_ROOM_ITEM_SIGNATURES,
   );
-  const hasCurrentRoomItems = hasAllSignatures(withoutLegacyShelves, GROCERY_ROOM_ITEM_SIGNATURES);
-  if (hasCurrentRoomItems) return withoutLegacyShelves;
+  const itemSignatures = new Set(
+    withoutLegacyShelves.map((item) => createFurnitureSignature(item)),
+  );
+  const missingRoomItems = DEFAULT_GROCERY_ROOM_ITEMS.filter(
+    (item) => !itemSignatures.has(createFurnitureSignature(item)),
+  );
+  if (missingRoomItems.length === 0) return withoutLegacyShelves;
   if (hasShopAnnexShelvesMigrationApplied()) return withoutLegacyShelves;
   return [
     ...withoutLegacyShelves,
-    ...DEFAULT_GROCERY_ROOM_ITEMS.map((item) => ({ ...item, _uid: nextUid() })),
+    ...missingRoomItems.map((item) => ({ ...item, _uid: nextUid() })),
   ];
 };
 
