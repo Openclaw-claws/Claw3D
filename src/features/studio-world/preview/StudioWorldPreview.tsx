@@ -15,7 +15,7 @@ type AssetMeshProps = {
 
 const AssetMesh = ({ asset }: AssetMeshProps) => {
   const groupRef = useRef<Group>(null);
-  const geometry = useMemo(() => buildAssetGeometry(asset.kind, asset.scale), [asset.kind, asset.scale]);
+  const geometry = useMemo(() => buildAssetGeometry(asset.kind), [asset.kind]);
   const material = useMemo(
     () => buildAssetMaterial(asset.color, asset.emissive ?? null),
     [asset.color, asset.emissive],

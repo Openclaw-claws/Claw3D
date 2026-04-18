@@ -115,13 +115,28 @@ const writeStore = (store: StudioProjectsStore) => {
   fs.writeFileSync(storePath, JSON.stringify(store, null, 2), "utf8");
 };
 
-const slugify = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "studio-world";
+const slugify = (value: string) => {
+  const input = value.trim().toLowerCase();
+  let result = "";
+  let pendingDash = false;
+  for (const char of input) {
+    const isAlphaNumeric =
+      (char >= "a" && char <= "z") || (char >= "0" && char <= "9");
+    if (isAlphaNumeric) {
+      if (pendingDash && result) {
+        result += "-";
+      }
+      result += char;
+      if (result.length >= 48) {
+        break;
+      }
+      pendingDash = false;
+      continue;
+    }
+    pendingDash = result.length > 0;
+  }
+  return result || "studio-world";
+};
 
 const createProjectId = (name: string) =>
   `${slugify(name)}-${Date.now().toString(36)}`;

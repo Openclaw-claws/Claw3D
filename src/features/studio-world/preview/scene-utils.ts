@@ -48,13 +48,13 @@ const createAssetMesh = (asset: StudioWorldAssetDraft) => {
   const material = buildAssetMaterial(asset.color, asset.emissive ?? null);
 
   if (asset.kind === "platform") {
-    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind, asset.scale), material);
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
     return mesh;
   }
 
   if (asset.kind === "tower") {
-    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind, asset.scale), material);
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
     return mesh;
   }
@@ -84,7 +84,7 @@ const createAssetMesh = (asset: StudioWorldAssetDraft) => {
         metalness: 0.02,
       }),
     );
-    const canopy = new THREE.Mesh(buildAssetGeometry(asset.kind, asset.scale), material);
+    const canopy = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     trunk.position.y = 0.5;
     canopy.position.y = 1.5;
     group.add(trunk, canopy);
@@ -93,14 +93,14 @@ const createAssetMesh = (asset: StudioWorldAssetDraft) => {
   }
 
   if (asset.kind === "rock") {
-    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind, asset.scale), material);
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
     return mesh;
   }
 
   if (asset.kind === "beacon") {
     const group = new THREE.Group();
-    const base = new THREE.Mesh(buildAssetGeometry(asset.kind, asset.scale), material);
+    const base = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     const cap = new THREE.Mesh(
       new THREE.SphereGeometry(0.34, 18, 18),
       new THREE.MeshStandardMaterial({
@@ -119,13 +119,13 @@ const createAssetMesh = (asset: StudioWorldAssetDraft) => {
   }
 
   if (asset.kind === "crate") {
-    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind, asset.scale), material);
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
     return mesh;
   }
 
   const ring = new THREE.Mesh(
-    buildAssetGeometry(asset.kind, asset.scale),
+    buildAssetGeometry(asset.kind),
     new THREE.MeshStandardMaterial({
       color: asset.color,
       emissive: asset.emissive ?? asset.color,

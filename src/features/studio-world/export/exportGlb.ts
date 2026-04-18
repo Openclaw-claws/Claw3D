@@ -14,13 +14,29 @@ const downloadBlob = (filename: string, blob: Blob) => {
   window.setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-const sanitizeFilename = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 48) || "claw3d-studio-world";
+const sanitizeFilename = (value: string) => {
+  const normalized = value.trim().toLowerCase();
+  let result = "";
+  let pendingDash = false;
+  for (const character of normalized) {
+    const isAlphaNumeric =
+      (character >= "a" && character <= "z") ||
+      (character >= "0" && character <= "9");
+    if (isAlphaNumeric) {
+      if (pendingDash && result.length > 0) {
+        result += "-";
+      }
+      result += character;
+      pendingDash = false;
+      if (result.length >= 48) {
+        break;
+      }
+      continue;
+    }
+    pendingDash = result.length > 0;
+  }
+  return result || "claw3d-studio-world";
+};
 
 export const exportStudioProjectGlb = async (project: StudioProjectRecord) => {
   const exporter = new GLTFExporter();
