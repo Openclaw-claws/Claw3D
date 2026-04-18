@@ -96,4 +96,82 @@ describe("studio world route", () => {
     expect(deleteResponse.status).toBe(200);
     expect(deleteBody.deleted).toBe(true);
   });
+
+  it("uploads an image and creates an image-guided avatar project", async () => {
+    tempDir = makeTempDir("studio-world-image-route");
+    process.env.OPENCLAW_STATE_DIR = tempDir;
+
+    const pngBytes = Uint8Array.from([
+      137, 80, 78, 71, 13, 10, 26, 10,
+      0, 0, 0, 13, 73, 72, 68, 82,
+      0, 0, 0, 1, 0, 0, 0, 1,
+      8, 6, 0, 0, 0, 31, 21, 196, 137,
+      0, 0, 0, 1, 73, 68, 65, 84,
+      120, 156, 99, 0, 0, 0, 2, 0, 1,
+      229, 39, 212, 162, 0, 0, 0, 0,
+      73, 69, 78, 68, 174, 66, 96, 130,
+    ]);
+
+    const formData = new FormData();
+    formData.append(
+      "image",
+      new File([pngBytes], "avatar.png", { type: "image/png" }),
+    );
+
+    const uploadResponse = await POST(
+      new Request("http://localhost/api/studio-world", {
+        method: "POST",
+        body: formData,
+      }),
+    );
+    const uploadBody = (await uploadResponse.json()) as {
+      sourceImage?: {
+        id?: string;
+        fileName?: string;
+        width?: number;
+        height?: number;
+        palette?: string[];
+      };
+    };
+
+    expect(uploadResponse.status).toBe(200);
+    expect((uploadBody.sourceImage?.fileName ?? "").length).toBeGreaterThan(0);
+    expect(uploadBody.sourceImage?.id).toBeTruthy();
+    expect(uploadBody.sourceImage?.width).toBe(1);
+    expect(uploadBody.sourceImage?.height).toBe(1);
+    expect((uploadBody.sourceImage?.palette ?? []).length).toBeGreaterThan(0);
+
+    const imageProjectResponse = await POST({
+      text: async () =>
+        JSON.stringify({
+          action: "generate",
+          input: {
+            name: "Avatar Test",
+            prompt: "Stylized cyber avatar inspired by the uploaded reference.",
+            style: "stylized",
+            scale: "medium",
+            focus: "assets",
+            sourceImage: uploadBody.sourceImage,
+          },
+        }),
+    } as unknown as Request);
+
+    const imageProjectBody = (await imageProjectResponse.json()) as {
+      project?: {
+        mode?: string;
+        sourceImages?: Array<{ fileName?: string }>;
+        sceneDraft?: { mode?: string; assets?: Array<{ kind?: string }> };
+      };
+    };
+
+    expect(imageProjectResponse.status).toBe(200);
+    expect(imageProjectBody.project?.mode).toBe("image_avatar");
+    expect((imageProjectBody.project?.sourceImages?.[0]?.fileName ?? "").length).toBeGreaterThan(0);
+    expect(imageProjectBody.project?.sceneDraft?.mode).toBe("image_avatar");
+    expect(
+      imageProjectBody.project?.sceneDraft?.assets?.some(
+        (asset) => asset.kind === "avatar_head",
+      ),
+    ).toBe(true);
+  });
 });

@@ -12,6 +12,7 @@ import {
 import { buildOfficeMapFromStudioProject } from "@/lib/studio-world/office";
 import {
   createStudioProject,
+  createStudioSourceImage,
   deleteStudioProject,
   getStudioProject,
   listStudioProjects,
@@ -27,6 +28,7 @@ export const runtime = "nodejs";
 
 const WORKSPACE_ID = "default";
 const OFFICE_ID = "studio-world";
+const MAX_IMAGE_UPLOAD_BYTES = 8 * 1024 * 1024;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === "object" && !Array.isArray(value));
@@ -49,17 +51,43 @@ const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
   if (!isRecord(value)) return null;
   const name = asString(value.name) || "Untitled Studio World";
   const prompt = asString(value.prompt);
-  if (!prompt) return null;
+  const sourceImage = isRecord(value.sourceImage)
+    ? {
+        id: asString(value.sourceImage.id),
+        fileName: asString(value.sourceImage.fileName),
+        mimeType: asString(value.sourceImage.mimeType),
+        width:
+          typeof value.sourceImage.width === "number" && Number.isFinite(value.sourceImage.width)
+            ? value.sourceImage.width
+            : 0,
+        height:
+          typeof value.sourceImage.height === "number" && Number.isFinite(value.sourceImage.height)
+            ? value.sourceImage.height
+            : 0,
+        sizeBytes:
+          typeof value.sourceImage.sizeBytes === "number" &&
+          Number.isFinite(value.sourceImage.sizeBytes)
+            ? value.sourceImage.sizeBytes
+            : 0,
+        storagePath: asString(value.sourceImage.storagePath),
+        dataUrl: asString(value.sourceImage.dataUrl),
+        palette: Array.isArray(value.sourceImage.palette)
+          ? value.sourceImage.palette.filter((entry): entry is string => typeof entry === "string")
+          : [],
+      }
+    : null;
+  if (!prompt && !sourceImage) return null;
   const rawSeed = value.seed;
   const seed =
     typeof rawSeed === "number" && Number.isFinite(rawSeed) ? rawSeed : null;
   return {
     name,
-    prompt,
+    prompt: prompt || "Image-guided avatar generation",
     style: parseStyle(value.style),
     scale: parseScale(value.scale),
     focus: parseFocus(value.focus),
     seed,
+    sourceImage,
   };
 };
 
@@ -164,6 +192,63 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    const contentType =
+      typeof request.headers?.get === "function"
+        ? request.headers.get("content-type") ?? ""
+        : "";
+    if (contentType.includes("multipart/form-data")) {
+      const contentLengthHeader = request.headers.get("content-length");
+      if (contentLengthHeader !== null) {
+        const contentLength = Number(contentLengthHeader);
+        if (!Number.isNaN(contentLength) && contentLength > MAX_IMAGE_UPLOAD_BYTES + 2048) {
+          return NextResponse.json(
+            {
+              error: `Image upload exceeds the ${MAX_IMAGE_UPLOAD_BYTES} byte limit.`,
+            },
+            { status: 413 },
+          );
+        }
+      }
+      const formData = await request.formData();
+      const image = formData.get("image");
+      if (
+        image === null ||
+        typeof image !== "object" ||
+        typeof (image as File).arrayBuffer !== "function"
+      ) {
+        return NextResponse.json({ error: "image file is required." }, { status: 400 });
+      }
+      const imageFile = image as File;
+      const mimeType = imageFile.type.trim().toLowerCase();
+      if (mimeType !== "image/png" && mimeType !== "image/jpeg" && mimeType !== "image/webp") {
+        return NextResponse.json(
+          { error: "Only PNG, JPEG, and WEBP uploads are supported." },
+          { status: 400 },
+        );
+      }
+      const arrayBuffer = await imageFile.arrayBuffer();
+      if (arrayBuffer.byteLength <= 0) {
+        return NextResponse.json({ error: "Image upload is empty." }, { status: 400 });
+      }
+      if (arrayBuffer.byteLength > MAX_IMAGE_UPLOAD_BYTES) {
+        return NextResponse.json(
+          {
+            error: `Image upload exceeds the ${MAX_IMAGE_UPLOAD_BYTES} byte limit.`,
+          },
+          { status: 413 },
+        );
+      }
+      const requestedFileName = asString(formData.get("fileName"));
+      const sourceImage = createStudioSourceImage({
+        fileName: requestedFileName || imageFile.name || "studio-reference",
+        mimeType,
+        buffer: Buffer.from(arrayBuffer),
+      });
+      return NextResponse.json(
+        { sourceImage },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const rawBody = await request.text();
     if (!rawBody.trim()) {
       return NextResponse.json({ error: "Invalid request payload." }, { status: 400 });

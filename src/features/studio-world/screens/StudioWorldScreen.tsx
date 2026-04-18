@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { HeaderBar } from "@/features/agents/components/HeaderBar";
 import { exportStudioProjectGlb } from "@/features/studio-world/export/exportGlb";
 import { StudioWorldPreview } from "@/features/studio-world/preview/StudioWorldPreview";
 import type {
   StudioProjectRecord,
+  StudioSourceImageRecord,
   StudioWorldFocus,
   StudioWorldScale,
   StudioWorldStyle,
@@ -39,6 +41,7 @@ type ExportManifestResponse = {
 type StudioWorldResponse = {
   projects?: StudioProjectRecord[];
   project?: StudioProjectRecord;
+  sourceImage?: StudioSourceImageRecord;
   office?: {
     workspaceId: string;
     officeId: string;
@@ -86,6 +89,9 @@ export function StudioWorldScreen() {
   const [scale, setScale] = useState<StudioWorldScale>("medium");
   const [focus, setFocus] = useState<StudioWorldFocus>("world");
   const [seed, setSeed] = useState("");
+  const [uploadedImage, setUploadedImage] = useState<StudioSourceImageRecord | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedProject = useMemo(
     () => projects.find((entry) => entry.id === selectedProjectId) ?? projects[0] ?? null,
@@ -115,9 +121,46 @@ export function StudioWorldScreen() {
     void refreshProjects();
   }, [refreshProjects]);
 
+  useEffect(() => {
+    if (!selectedProject) return;
+    setUploadedImage(selectedProject.sourceImages[0] ?? null);
+  }, [selectedProject]);
+
+  const handleImageUpload = async (file: File) => {
+    setUploadingImage(true);
+    setStatusLine("Uploading reference image.");
+    try {
+      const formData = new FormData();
+      formData.append("image", file);
+      const response = await fetch("/api/studio-world", {
+        method: "POST",
+        body: formData,
+      });
+      const body = (await response.json()) as StudioWorldResponse;
+      if (!response.ok || !body.sourceImage) {
+        throw new Error(body.error || "Failed to upload image.");
+      }
+      setUploadedImage(body.sourceImage);
+      setError(null);
+      setStatusLine(`Uploaded ${body.sourceImage.fileName}.`);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Failed to upload image.");
+      setStatusLine(null);
+    } finally {
+      setUploadingImage(false);
+      if (uploadInputRef.current) {
+        uploadInputRef.current.value = "";
+      }
+    }
+  };
+
   const handleGenerate = async () => {
     setBusy(true);
-    setStatusLine("Generating clean-room studio draft.");
+    setStatusLine(
+      uploadedImage
+        ? "Generating image-guided 3D proxy."
+        : "Generating clean-room studio draft.",
+    );
     try {
       const parsedSeed = seed.trim() ? Number.parseInt(seed.trim(), 10) : null;
       const response = await fetch("/api/studio-world", {
@@ -132,6 +175,7 @@ export function StudioWorldScreen() {
             scale,
             focus,
             seed: Number.isFinite(parsedSeed) ? parsedSeed : null,
+            sourceImage: uploadedImage,
           },
         }),
       });
@@ -271,12 +315,74 @@ export function StudioWorldScreen() {
               <div className="font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
                 Claw3D Studio
               </div>
-              <h1 className="mt-2 text-2xl font-semibold text-foreground">Generate 3D worlds, assets, and motion.</h1>
+              <h1 className="mt-2 text-2xl font-semibold text-foreground">Generate 3D worlds, assets, motion, and image-guided avatars.</h1>
               <p className="mt-2 text-sm text-muted-foreground">
-                This clean-room workflow is inspired by modern world-model pipelines, but implemented as Claw3D-native
-                tooling and data contracts.
+                This clean-room workflow is inspired by tools like Meshy, but implemented as Claw3D-native tooling and
+                data contracts.
               </p>
               <div className="mt-5 space-y-4">
+                <div className="rounded-2xl border border-border/60 bg-surface-1/35 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-foreground">Reference image</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        Upload a PNG, JPEG, or WEBP to generate a stylized 3D avatar proxy inspired by that image.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="ui-btn-secondary px-3 py-1.5 text-xs"
+                      onClick={() => uploadInputRef.current?.click()}
+                      disabled={busy || uploadingImage}
+                    >
+                      {uploadingImage ? "Uploading..." : uploadedImage ? "Replace image" : "Upload image"}
+                    </button>
+                  </div>
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (!file) return;
+                      void handleImageUpload(file);
+                    }}
+                  />
+                  {uploadedImage ? (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+                      <div className="overflow-hidden rounded-xl border border-border/60 bg-black/10">
+                        <Image
+                          src={uploadedImage.dataUrl}
+                          alt={uploadedImage.fileName}
+                          width={120}
+                          height={120}
+                          className="h-[120px] w-full object-cover"
+                          unoptimized
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-foreground">{uploadedImage.fileName}</div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {uploadedImage.width} x {uploadedImage.height} • {Math.round(uploadedImage.sizeBytes / 1024)} KB
+                        </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {uploadedImage.palette.map((color) => (
+                            <div key={color} className="flex items-center gap-2 rounded-full border border-border/60 px-2 py-1">
+                              <span
+                                className="inline-block h-3 w-3 rounded-full border border-black/15"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                                {color}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-medium text-foreground">Project name</span>
                   <input
@@ -337,12 +443,31 @@ export function StudioWorldScreen() {
                   </label>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <button type="button" className="ui-btn-primary px-4 py-2 text-sm" onClick={() => void handleGenerate()} disabled={busy}>
-                    {busy ? "Working..." : "Generate scene"}
+                  <button
+                    type="button"
+                    className="ui-btn-primary px-4 py-2 text-sm"
+                    onClick={() => void handleGenerate()}
+                    disabled={busy || uploadingImage}
+                  >
+                    {busy
+                      ? "Working..."
+                      : uploadedImage
+                        ? "Generate from image"
+                        : "Generate scene"}
                   </button>
-                  <button type="button" className="ui-btn-secondary px-4 py-2 text-sm" onClick={() => void refreshProjects()} disabled={busy}>
+                  <button type="button" className="ui-btn-secondary px-4 py-2 text-sm" onClick={() => void refreshProjects()} disabled={busy || uploadingImage}>
                     Refresh library
                   </button>
+                  {uploadedImage ? (
+                    <button
+                      type="button"
+                      className="ui-btn-secondary px-4 py-2 text-sm"
+                      onClick={() => setUploadedImage(null)}
+                      disabled={busy || uploadingImage}
+                    >
+                      Clear image
+                    </button>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -434,11 +559,32 @@ export function StudioWorldScreen() {
                           <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                             {project.scale}
                           </span>
+                          <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                            {project.mode === "image_avatar" ? "image avatar" : "text scene"}
+                          </span>
                         </div>
                       </button>
                       <div className="mt-3 text-[11px] text-muted-foreground">
                         Updated {formatTimestamp(project.updatedAt)}.
                       </div>
+                      {project.sourceImages[0] ? (
+                        <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-surface-1/35 p-2">
+                          <Image
+                            src={project.sourceImages[0].dataUrl}
+                            alt={project.sourceImages[0].fileName}
+                            width={52}
+                            height={52}
+                            className="h-13 w-13 rounded-lg object-cover"
+                            unoptimized
+                          />
+                          <div className="min-w-0 text-xs text-muted-foreground">
+                            <div className="truncate text-foreground">{project.sourceImages[0].fileName}</div>
+                            <div>
+                              {project.sourceImages[0].width} x {project.sourceImages[0].height}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
                       <div className="mt-3 flex flex-wrap gap-2">
                         <button
                           type="button"

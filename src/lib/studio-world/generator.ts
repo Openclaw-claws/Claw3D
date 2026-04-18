@@ -9,6 +9,7 @@ import type {
   StudioWorldScale,
   StudioWorldStyle,
 } from "@/lib/studio-world/types";
+import { buildAvatarImageNotes } from "@/lib/studio-world/image-analysis";
 
 const hashString = (value: string) => {
   let hash = 0;
@@ -114,6 +115,16 @@ const scaleToBounds = (scale: StudioWorldScale) => {
     return { width: 58, depth: 58, assetCount: 28 };
   }
   return { width: 40, depth: 40, assetCount: 18 };
+};
+
+const avatarScaleToBounds = (scale: StudioWorldScale) => {
+  if (scale === "small") {
+    return { width: 14, depth: 14 };
+  }
+  if (scale === "large") {
+    return { width: 24, depth: 24 };
+  }
+  return { width: 18, depth: 18 };
 };
 
 const detectBiome = (prompt: string, style: StudioWorldStyle): StudioWorldBiome => {
@@ -229,10 +240,172 @@ export const resolveGenerationSeed = (input: StudioGenerationInput) => {
   if (typeof input.seed === "number" && Number.isFinite(input.seed)) {
     return Math.floor(Math.abs(input.seed));
   }
-  return hashString(`${input.name}:${input.prompt}:${input.style}:${input.scale}:${input.focus}`);
+  return hashString(
+    `${input.name}:${input.prompt}:${input.style}:${input.scale}:${input.focus}:${input.sourceImage?.id ?? ""}`,
+  );
+};
+
+const buildAvatarDraft = (input: StudioGenerationInput): StudioWorldDraft => {
+  const sourceImage = input.sourceImage;
+  if (!sourceImage) {
+    throw new Error("Image-guided avatar generation requires a source image.");
+  }
+  const seed = resolveGenerationSeed(input);
+  const bounds = avatarScaleToBounds(input.scale);
+  const imageNotes = buildAvatarImageNotes(sourceImage);
+  const palette: StudioWorldPalette = {
+    ground: imageNotes.backdrop,
+    structure: imageNotes.outfitMain,
+    prop: imageNotes.outfitTrim,
+    accent: imageNotes.accessory,
+    glow: imageNotes.accessory,
+    fog: imageNotes.outfitTrim,
+    sky: imageNotes.backdrop,
+  };
+  const notes = [
+    `Image-guided avatar proxy built from ${sourceImage.fileName}.`,
+    `Palette sampled from the uploaded reference image.`,
+    `Generated with ${input.style} styling and seed ${seed}.`,
+  ];
+  const ratio = sourceImage.height > 0 ? sourceImage.width / sourceImage.height : 1;
+  const shoulderWidth = clamp(1.8 + ratio * 0.8, 1.8, 3.4);
+  const headScale = clamp(1.35 + (ratio < 0.9 ? 0.2 : 0), 1.3, 1.7);
+
+  const assets: StudioWorldAssetDraft[] = [
+    {
+      id: "avatar_base",
+      name: "Avatar base",
+      kind: "platform",
+      position: [0, -0.2, 0],
+      scale: [6.5, 0.4, 6.5],
+      rotationY: 0,
+      color: palette.ground,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "avatar_torso",
+      name: "Avatar torso",
+      kind: "avatar_torso",
+      position: [0, 2.4, 0],
+      scale: [shoulderWidth, 3.2, 1.2],
+      rotationY: 0,
+      color: imageNotes.outfitMain,
+      emissive: null,
+      animation: input.focus === "animation" ? "bob" : "none",
+    },
+    {
+      id: "avatar_head",
+      name: "Avatar head",
+      kind: "avatar_head",
+      position: [0, 5.4, 0],
+      scale: [headScale, 1.75, 1.4],
+      rotationY: 0,
+      color: imageNotes.skinLike,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "avatar_hair",
+      name: "Avatar hair",
+      kind: "avatar_hair",
+      position: [0, 6.6, -0.06],
+      scale: [1.65, 1.45, 1.1],
+      rotationY: 0,
+      color: imageNotes.hairLike,
+      emissive: null,
+      animation: input.focus === "animation" ? "pulse" : "none",
+    },
+    {
+      id: "avatar_left_arm",
+      name: "Avatar left arm",
+      kind: "avatar_limb",
+      position: [-2.05, 2.8, 0],
+      scale: [0.48, 2.2, 0.48],
+      rotationY: 0.15,
+      color: imageNotes.outfitTrim,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "avatar_right_arm",
+      name: "Avatar right arm",
+      kind: "avatar_limb",
+      position: [2.05, 2.8, 0],
+      scale: [0.48, 2.2, 0.48],
+      rotationY: -0.15,
+      color: imageNotes.outfitTrim,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "avatar_left_leg",
+      name: "Avatar left leg",
+      kind: "avatar_limb",
+      position: [-0.65, 0.8, 0],
+      scale: [0.58, 2.2, 0.58],
+      rotationY: 0,
+      color: imageNotes.outfitMain,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "avatar_right_leg",
+      name: "Avatar right leg",
+      kind: "avatar_limb",
+      position: [0.65, 0.8, 0],
+      scale: [0.58, 2.2, 0.58],
+      rotationY: 0,
+      color: imageNotes.outfitMain,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "avatar_glasses",
+      name: "Avatar glasses",
+      kind: "avatar_accessory",
+      position: [0, 5.45, 1.02],
+      scale: [1.65, 0.5, 0.18],
+      rotationY: 0,
+      color: imageNotes.accessory,
+      emissive: imageNotes.accessory,
+      animation: "pulse",
+    },
+    {
+      id: "avatar_companion",
+      name: "Avatar companion",
+      kind: "avatar_orb",
+      position: [4.2, 4.8, -1.2],
+      scale: [1.05, 1.05, 1.05],
+      rotationY: 0,
+      color: imageNotes.outfitTrim,
+      emissive: imageNotes.accessory,
+      animation: "spin",
+    },
+  ];
+
+  return {
+    mode: "image_avatar",
+    biome: "creative_plaza",
+    palette,
+    worldBounds: {
+      width: bounds.width,
+      depth: bounds.depth,
+    },
+    camera: {
+      position: [8.8, 6.8, 10.8],
+      target: [0, 3.2, 0],
+    },
+    promptSummary: input.prompt.trim() || `Image-guided avatar from ${sourceImage.fileName}`,
+    notes,
+    assets,
+  };
 };
 
 export const buildStudioWorldDraft = (input: StudioGenerationInput): StudioWorldDraft => {
+  if (input.sourceImage) {
+    return buildAvatarDraft(input);
+  }
   const seed = resolveGenerationSeed(input);
   const random = createSeededRandom(seed);
   const biome = detectBiome(input.prompt, input.style);
@@ -254,6 +427,7 @@ export const buildStudioWorldDraft = (input: StudioGenerationInput): StudioWorld
   ];
 
   return {
+    mode: "text_scene",
     biome,
     palette,
     worldBounds: {

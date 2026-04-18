@@ -26,7 +26,27 @@ export type StudioWorldAssetKind =
   | "rock"
   | "beacon"
   | "crate"
-  | "portal";
+  | "portal"
+  | "avatar_head"
+  | "avatar_hair"
+  | "avatar_torso"
+  | "avatar_limb"
+  | "avatar_accessory"
+  | "avatar_orb";
+
+export type StudioWorldGenerationMode = "text_scene" | "image_avatar";
+
+export type StudioSourceImageRecord = {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  width: number;
+  height: number;
+  sizeBytes: number;
+  storagePath: string;
+  dataUrl: string;
+  palette: string[];
+};
 
 export type StudioWorldAssetDraft = {
   id: string;
@@ -51,6 +71,7 @@ export type StudioWorldPalette = {
 };
 
 export type StudioWorldDraft = {
+  mode: StudioWorldGenerationMode;
   biome: StudioWorldBiome;
   palette: StudioWorldPalette;
   worldBounds: {
@@ -73,6 +94,7 @@ export type StudioGenerationInput = {
   scale: StudioWorldScale;
   focus: StudioWorldFocus;
   seed?: number | null;
+  sourceImage?: StudioSourceImageRecord | null;
 };
 
 export type StudioGenerationJobRecord = {
@@ -83,6 +105,7 @@ export type StudioGenerationJobRecord = {
   finishedAt: string;
   summary: string;
   assetCount: number;
+  mode: StudioWorldGenerationMode;
 };
 
 export type StudioProjectRecord = {
@@ -93,9 +116,11 @@ export type StudioProjectRecord = {
   scale: StudioWorldScale;
   focus: StudioWorldFocus;
   seed: number;
+  mode: StudioWorldGenerationMode;
   createdAt: string;
   updatedAt: string;
   latestJob: StudioGenerationJobRecord;
+  sourceImages: StudioSourceImageRecord[];
   sceneDraft: StudioWorldDraft;
 };
 

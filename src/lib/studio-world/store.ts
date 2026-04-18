@@ -6,15 +6,21 @@ import {
   buildStudioWorldDraft,
   resolveGenerationSeed,
 } from "@/lib/studio-world/generator";
+import {
+  buildImagePaletteFromBuffer,
+  resolveImageSize,
+} from "@/lib/studio-world/image-analysis";
 import type {
   StudioGenerationInput,
   StudioGenerationJobRecord,
   StudioProjectRecord,
   StudioProjectsStore,
+  StudioSourceImageRecord,
 } from "@/lib/studio-world/types";
 
 const STORE_DIR = "claw3d";
 const STORE_FILE = "studio-world-projects.json";
+const IMAGE_DIR = "studio-world-images";
 const STORE_VERSION = 1;
 
 const ensureDirectory = (dirPath: string) => {
@@ -28,6 +34,13 @@ const resolveStorePath = () => {
   const dir = path.join(stateDir, STORE_DIR);
   ensureDirectory(dir);
   return path.join(dir, STORE_FILE);
+};
+
+const resolveImageDirectory = () => {
+  const stateDir = resolveStateDir();
+  const dir = path.join(stateDir, STORE_DIR, IMAGE_DIR);
+  ensureDirectory(dir);
+  return dir;
 };
 
 const defaultStore = (): StudioProjectsStore => ({
@@ -79,6 +92,7 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
             ? entry.focus
             : "world",
         seed: asNumber(entry.seed, 0),
+        mode: entry.mode === "image_avatar" ? "image_avatar" : "text_scene",
         createdAt,
         updatedAt,
         latestJob: {
@@ -89,7 +103,24 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
           finishedAt: asString(entry.latestJob.finishedAt, updatedAt),
           summary: asString(entry.latestJob.summary, ""),
           assetCount: asNumber(entry.latestJob.assetCount, 0),
+          mode: entry.latestJob.mode === "image_avatar" ? "image_avatar" : "text_scene",
         },
+        sourceImages: Array.isArray(entry.sourceImages)
+          ? entry.sourceImages.filter((image): image is StudioSourceImageRecord => {
+              if (!isRecord(image)) return false;
+              return (
+                typeof image.id === "string" &&
+                typeof image.fileName === "string" &&
+                typeof image.mimeType === "string" &&
+                typeof image.width === "number" &&
+                typeof image.height === "number" &&
+                typeof image.sizeBytes === "number" &&
+                typeof image.storagePath === "string" &&
+                typeof image.dataUrl === "string" &&
+                Array.isArray(image.palette)
+              );
+            })
+          : [],
         sceneDraft: entry.sceneDraft as StudioProjectRecord["sceneDraft"],
       };
     })
@@ -143,16 +174,49 @@ const createProjectId = (name: string) =>
 
 const createJobId = () => `job-${Date.now().toString(36)}`;
 
+const createImageId = () => `image-${Date.now().toString(36)}`;
+
 const buildSummary = (params: {
   input: StudioGenerationInput;
   assetCount: number;
 }) =>
   `${params.input.style} ${params.input.focus} draft with ${params.assetCount} assets for ${params.input.scale} scope.`;
 
+const extFromMimeType = (mimeType: string) => {
+  if (mimeType === "image/png") return "png";
+  if (mimeType === "image/jpeg") return "jpg";
+  if (mimeType === "image/webp") return "webp";
+  return "bin";
+};
+
 export const listStudioProjects = () => readStore().projects;
 
 export const getStudioProject = (projectId: string) =>
   readStore().projects.find((entry) => entry.id === projectId) ?? null;
+
+export const createStudioSourceImage = (params: {
+  fileName: string;
+  mimeType: string;
+  buffer: Buffer;
+}): StudioSourceImageRecord => {
+  const imageId = createImageId();
+  const extension = extFromMimeType(params.mimeType);
+  const storagePath = path.join(resolveImageDirectory(), `${imageId}.${extension}`);
+  fs.writeFileSync(storagePath, params.buffer);
+  const { width, height } = resolveImageSize(params.buffer);
+  const palette = buildImagePaletteFromBuffer(params.buffer);
+  return {
+    id: imageId,
+    fileName: params.fileName,
+    mimeType: params.mimeType,
+    width,
+    height,
+    sizeBytes: params.buffer.byteLength,
+    storagePath,
+    dataUrl: `data:${params.mimeType};base64,${params.buffer.toString("base64")}`,
+    palette,
+  };
+};
 
 export const createStudioProject = (input: StudioGenerationInput) => {
   const store = readStore();
@@ -167,6 +231,7 @@ export const createStudioProject = (input: StudioGenerationInput) => {
     finishedAt: createdAt,
     summary: buildSummary({ input, assetCount: sceneDraft.assets.length }),
     assetCount: sceneDraft.assets.length,
+    mode: sceneDraft.mode,
   };
   const project: StudioProjectRecord = {
     id: createProjectId(input.name),
@@ -176,9 +241,11 @@ export const createStudioProject = (input: StudioGenerationInput) => {
     scale: input.scale,
     focus: input.focus,
     seed,
+    mode: sceneDraft.mode,
     createdAt,
     updatedAt: createdAt,
     latestJob,
+    sourceImages: input.sourceImage ? [input.sourceImage] : [],
     sceneDraft,
   };
   store.projects = [project, ...store.projects].sort((left, right) =>

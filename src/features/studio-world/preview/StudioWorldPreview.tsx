@@ -1,12 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import { Environment, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import * as THREE from "three";
 import type { Group } from "three";
 
-import type { StudioWorldAssetDraft, StudioWorldDraft } from "@/lib/studio-world/types";
+import type {
+  StudioProjectRecord,
+  StudioSourceImageRecord,
+  StudioWorldAssetDraft,
+  StudioWorldDraft,
+} from "@/lib/studio-world/types";
 import { buildAssetGeometry, buildAssetMaterial, buildGlowMaterial } from "@/features/studio-world/preview/scene-utils";
 
 type AssetMeshProps = {
@@ -105,9 +111,15 @@ const SceneContents = ({ sceneDraft }: { sceneDraft: StudioWorldDraft }) => {
 
 type StudioWorldPreviewProps = {
   sceneDraft: StudioWorldDraft;
+  referenceImage?: StudioSourceImageRecord | null;
+  project?: Pick<StudioProjectRecord, "mode"> | null;
 };
 
-export function StudioWorldPreview({ sceneDraft }: StudioWorldPreviewProps) {
+export function StudioWorldPreview({
+  sceneDraft,
+  referenceImage = null,
+  project = null,
+}: StudioWorldPreviewProps) {
   return (
     <div className="relative h-full min-h-[360px] w-full overflow-hidden rounded-2xl border border-border/60 bg-black/70">
       <Canvas
@@ -130,6 +142,27 @@ export function StudioWorldPreview({ sceneDraft }: StudioWorldPreviewProps) {
           {sceneDraft.assets.length} assets
         </div>
       </div>
+      {referenceImage ? (
+        <div className="pointer-events-none absolute bottom-4 left-4 w-36 overflow-hidden rounded-2xl border border-white/15 bg-black/45 shadow-2xl backdrop-blur">
+          <Image
+            src={referenceImage.dataUrl}
+            alt={referenceImage.fileName}
+            width={144}
+            height={144}
+            className="h-28 w-full object-cover"
+            unoptimized
+          />
+          <div className="px-3 py-2">
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-100/80">
+              Reference
+            </div>
+            <div className="mt-1 truncate text-xs text-white/85">{referenceImage.fileName}</div>
+            <div className="mt-1 text-[11px] text-white/60">
+              {project?.mode === "image_avatar" ? "Image-guided avatar proxy." : "Reference image attached."}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

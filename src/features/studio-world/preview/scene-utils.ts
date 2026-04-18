@@ -41,6 +41,24 @@ export const buildAssetGeometry = (kind: StudioWorldAssetDraft["kind"]) => {
   if (kind === "portal") {
     return new THREE.TorusGeometry(0.6, 0.16, 16, 32);
   }
+  if (kind === "avatar_head") {
+    return new THREE.SphereGeometry(0.9, 24, 24);
+  }
+  if (kind === "avatar_hair") {
+    return new THREE.ConeGeometry(1, 1.4, 14);
+  }
+  if (kind === "avatar_torso") {
+    return new THREE.BoxGeometry(1, 1, 1);
+  }
+  if (kind === "avatar_limb") {
+    return new THREE.CapsuleGeometry(0.22, 1.1, 8, 14);
+  }
+  if (kind === "avatar_accessory") {
+    return new THREE.BoxGeometry(1, 0.28, 0.12);
+  }
+  if (kind === "avatar_orb") {
+    return new THREE.OctahedronGeometry(0.82, 0);
+  }
   return new THREE.BoxGeometry(1, 1, 1);
 };
 
@@ -57,6 +75,72 @@ const createAssetMesh = (asset: StudioWorldAssetDraft) => {
     const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
     mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
     return mesh;
+  }
+
+  if (asset.kind === "avatar_head") {
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return mesh;
+  }
+
+  if (asset.kind === "avatar_hair") {
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return mesh;
+  }
+
+  if (asset.kind === "avatar_torso") {
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return mesh;
+  }
+
+  if (asset.kind === "avatar_limb") {
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return mesh;
+  }
+
+  if (asset.kind === "avatar_accessory") {
+    const group = new THREE.Group();
+    const bar = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    const leftLens = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.26, 0.26, 0.1, 22),
+      new THREE.MeshStandardMaterial({
+        color: asset.color,
+        emissive: asset.emissive ?? asset.color,
+        emissiveIntensity: 1,
+        roughness: 0.15,
+        metalness: 0.42,
+      }),
+    );
+    const rightLens = leftLens.clone();
+    leftLens.rotation.z = Math.PI / 2;
+    rightLens.rotation.z = Math.PI / 2;
+    leftLens.position.x = -0.36;
+    rightLens.position.x = 0.36;
+    group.add(bar, leftLens, rightLens);
+    group.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return group;
+  }
+
+  if (asset.kind === "avatar_orb") {
+    const group = new THREE.Group();
+    const core = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    const halo = new THREE.Mesh(
+      new THREE.TorusGeometry(0.75, 0.06, 12, 30),
+      new THREE.MeshStandardMaterial({
+        color: asset.emissive ?? asset.color,
+        emissive: asset.emissive ?? asset.color,
+        emissiveIntensity: 1.2,
+        roughness: 0.12,
+        metalness: 0.24,
+      }),
+    );
+    halo.rotation.x = Math.PI / 3;
+    group.add(core, halo);
+    group.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return group;
   }
 
   if (asset.kind === "arch") {
