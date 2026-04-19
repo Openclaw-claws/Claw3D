@@ -466,6 +466,7 @@ const decodeImageUrl = async (imageUrl) => {
   };
 };
 
+
 const createHeightfieldScene = async (params) => {
   const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
   const { colorGrid, intensityGrid, palette, width, height } = params;
@@ -750,6 +751,56 @@ const createAdapterRegistry = () => {
   };
 };
 
+const mergeRasterViews = (rasters) => {
+  const available = rasters.filter(
+    (raster) => raster && raster.data && raster.width > 0 && raster.height > 0,
+  );
+  if (available.length === 0) {
+    return null;
+  }
+  const width = Math.max(...available.map((raster) => raster.width));
+  const height = Math.max(...available.map((raster) => raster.height));
+  const data = new Uint8Array(width * height * 4);
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let alpha = 0;
+      let count = 0;
+      for (const raster of available) {
+        const sx = Math.min(
+          raster.width - 1,
+          Math.max(0, Math.round((x / Math.max(width - 1, 1)) * (raster.width - 1))),
+        );
+        const sy = Math.min(
+          raster.height - 1,
+          Math.max(0, Math.round((y / Math.max(height - 1, 1)) * (raster.height - 1))),
+        );
+        const index = (sy * raster.width + sx) * 4;
+        red += raster.data[index] ?? 0;
+        green += raster.data[index + 1] ?? red;
+        blue += raster.data[index + 2] ?? green;
+        alpha += raster.data[index + 3] ?? 255;
+        count += 1;
+      }
+      const out = (y * width + x) * 4;
+      data[out] = Math.round(red / Math.max(count, 1));
+      data[out + 1] = Math.round(green / Math.max(count, 1));
+      data[out + 2] = Math.round(blue / Math.max(count, 1));
+      data[out + 3] = Math.round(alpha / Math.max(count, 1));
+    }
+  }
+
+  return {
+    width,
+    height,
+    channels: 4,
+    data,
+  };
+};
+
 const createTaskStore = () => {
   const tasks = new Map();
   const rootDir = resolveWorkerDir();
@@ -816,8 +867,17 @@ const createTaskStore = () => {
       task.startedAt = Date.now();
       writeTaskMetadata(taskDir, task);
       try {
+        const mergedRaster = mergeRasterViews([
+          decodeRasterImage(params.buffer, params.mimeType || "image/png"),
+          ...(Array.isArray(params.additionalImages)
+            ? params.additionalImages.map((image) =>
+                decodeRasterImage(image.buffer, image.mimeType || "image/png"),
+              )
+            : []),
+        ]);
         const result = await adapter.generate({
           buffer: params.buffer,
+          raster: mergedRaster,
           mimeType: params.mimeType || "image/png",
           sourceImagePath,
           prompt: params.prompt || "",
@@ -914,10 +974,18 @@ const createStudioAiWorkerServer = (params = {}) => {
       if (req.method === "POST" && pathname === "/openapi/v1/image-to-3d") {
         const rawBody = await readRequestBody(req);
         const body = JSON.parse(rawBody.toString("utf8"));
-        const { buffer } = await decodeImageUrl(body.image_url);
+        const { buffer, mimeType } = await decodeImageUrl(body.image_url);
+        const additionalImages = [];
+        if (Array.isArray(body.image_urls)) {
+          for (const imageUrl of body.image_urls) {
+            if (typeof imageUrl !== "string" || !imageUrl.trim()) continue;
+            additionalImages.push(await decodeImageUrl(imageUrl));
+          }
+        }
         const created = await taskStore.createTask(
           {
             buffer,
+            additionalImages,
             adapterId:
               typeof body.adapter_id === "string" && body.adapter_id.trim()
                 ? body.adapter_id.trim()
@@ -928,14 +996,7 @@ const createStudioAiWorkerServer = (params = {}) => {
                 : "",
             mode:
               body.model_type === "lowpoly" ? "image_avatar" : "image_mesh",
-            mimeType:
-              typeof body.image_url === "string" && body.image_url.startsWith("data:image/jpeg")
-                ? "image/jpeg"
-                : typeof body.image_url === "string" && body.image_url.startsWith("data:image/png")
-                  ? "image/png"
-                  : typeof body.image_url === "string" && body.image_url.startsWith("data:image/webp")
-                    ? "image/webp"
-                    : "image/png",
+            mimeType,
           },
           baseUrl,
         );

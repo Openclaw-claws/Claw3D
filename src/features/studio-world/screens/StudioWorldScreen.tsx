@@ -117,7 +117,7 @@ export function StudioWorldScreen() {
   const [scale, setScale] = useState<StudioWorldScale>("medium");
   const [focus, setFocus] = useState<StudioWorldFocus>("world");
   const [seed, setSeed] = useState("");
-  const [uploadedImage, setUploadedImage] = useState<StudioSourceImageRecord | null>(null);
+  const [uploadedImages, setUploadedImages] = useState<StudioSourceImageRecord[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageMode, setImageMode] = useState<"avatar" | "mesh">("avatar");
   const [provider, setProvider] = useState<StudioWorldGenerationProvider>("local");
@@ -156,7 +156,7 @@ export function StudioWorldScreen() {
 
   useEffect(() => {
     if (!selectedProject) return;
-    setUploadedImage(selectedProject.sourceImages[0] ?? null);
+    setUploadedImages(selectedProject.sourceImages ?? []);
     setProvider(selectedProject.provider ?? "local");
     setWorkerAdapter(selectedProject.externalModel?.adapterId ?? "portrait_volume");
   }, [selectedProject]);
@@ -223,7 +223,7 @@ export function StudioWorldScreen() {
       if (!response.ok || !body.sourceImage) {
         throw new Error(body.error || "Failed to upload image.");
       }
-      setUploadedImage(body.sourceImage);
+      setUploadedImages((current) => [...current, body.sourceImage!]);
       setError(null);
       setStatusLine(`Uploaded ${body.sourceImage.fileName}.`);
     } catch (uploadError) {
@@ -240,7 +240,7 @@ export function StudioWorldScreen() {
   const handleGenerate = async () => {
     setBusy(true);
     setStatusLine(
-      uploadedImage
+      uploadedImages.length > 0
         ? "Generating image-guided 3D proxy."
         : "Generating clean-room studio draft.",
     );
@@ -258,7 +258,8 @@ export function StudioWorldScreen() {
             scale,
             focus,
             seed: Number.isFinite(parsedSeed) ? parsedSeed : null,
-            sourceImage: uploadedImage,
+            sourceImage: uploadedImages[0] ?? null,
+            sourceImages: uploadedImages,
             imageMode,
             provider,
             workerAdapter,
@@ -475,9 +476,9 @@ export function StudioWorldScreen() {
                 <div className="rounded-2xl border border-border/60 bg-surface-1/35 p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-sm font-semibold text-foreground">Reference image</div>
+                      <div className="text-sm font-semibold text-foreground">Reference images</div>
                       <div className="mt-1 text-xs text-muted-foreground">
-                        Upload a PNG, JPEG, or WEBP to generate a stylized 3D avatar proxy inspired by that image.
+                        Upload one or more PNG, JPEG, or WEBP images. Front, side, and back references improve self-hosted reconstruction.
                       </div>
                     </div>
                     <button
@@ -486,54 +487,63 @@ export function StudioWorldScreen() {
                       onClick={() => uploadInputRef.current?.click()}
                       disabled={busy || uploadingImage}
                     >
-                      {uploadingImage ? "Uploading..." : uploadedImage ? "Replace image" : "Upload image"}
+                      {uploadingImage ? "Uploading..." : uploadedImages.length > 0 ? "Add image" : "Upload image"}
                     </button>
                   </div>
                   <input
                     ref={uploadInputRef}
                     type="file"
                     accept="image/png,image/jpeg,image/webp"
+                    multiple
                     className="hidden"
                     onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (!file) return;
-                      void handleImageUpload(file);
+                      const files = Array.from(event.target.files ?? []);
+                      if (files.length === 0) return;
+                      void (async () => {
+                        for (const file of files) {
+                          await handleImageUpload(file);
+                        }
+                      })();
                     }}
                   />
-                  {uploadedImage ? (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-[120px_minmax(0,1fr)]">
-                      <div className="overflow-hidden rounded-xl border border-border/60 bg-black/10">
-                        <Image
-                          src={uploadedImage.dataUrl}
-                          alt={uploadedImage.fileName}
-                          width={120}
-                          height={120}
-                          className="h-[120px] w-full object-cover"
-                          unoptimized
-                        />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-foreground">{uploadedImage.fileName}</div>
-                        <div className="mt-1 text-xs text-muted-foreground">
-                          {uploadedImage.width} x {uploadedImage.height} • {Math.round(uploadedImage.sizeBytes / 1024)} KB
-                        </div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {uploadedImage.palette.map((color) => (
-                            <div key={color} className="flex items-center gap-2 rounded-full border border-border/60 px-2 py-1">
-                              <span
-                                className="inline-block h-3 w-3 rounded-full border border-black/15"
-                                style={{ backgroundColor: color }}
-                              />
-                              <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                                {color}
-                              </span>
+                  {uploadedImages.length > 0 ? (
+                    <div className="mt-3 space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-3">
+                        {uploadedImages.map((image) => (
+                          <div key={image.id} className="overflow-hidden rounded-xl border border-border/60 bg-black/10">
+                            <Image
+                              src={image.dataUrl}
+                              alt={image.fileName}
+                              width={160}
+                              height={160}
+                              className="h-[140px] w-full object-cover"
+                              unoptimized
+                            />
+                            <div className="px-3 py-2">
+                              <div className="truncate text-sm font-medium text-foreground">{image.fileName}</div>
+                              <div className="mt-1 text-xs text-muted-foreground">
+                                {image.width} x {image.height} • {Math.round(image.sizeBytes / 1024)} KB
+                              </div>
                             </div>
-                          ))}
-                        </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(uploadedImages[0]?.palette ?? []).map((color) => (
+                          <div key={color} className="flex items-center gap-2 rounded-full border border-border/60 px-2 py-1">
+                            <span
+                              className="inline-block h-3 w-3 rounded-full border border-black/15"
+                              style={{ backgroundColor: color }}
+                            />
+                            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                              {color}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ) : null}
-                  {uploadedImage ? (
+                  {uploadedImages.length > 0 ? (
                     <div className="mt-3">
                       <div className="mb-1.5 block text-xs font-medium text-foreground">Image generation mode</div>
                       <div className="grid gap-2 sm:grid-cols-2">
@@ -666,21 +676,21 @@ export function StudioWorldScreen() {
                   >
                     {busy
                       ? "Working..."
-                      : uploadedImage
+                      : uploadedImages.length > 0
                         ? "Generate from image"
                         : "Generate scene"}
                   </button>
                   <button type="button" className="ui-btn-secondary px-4 py-2 text-sm" onClick={() => void refreshProjects()} disabled={busy || uploadingImage}>
                     Refresh library
                   </button>
-                  {uploadedImage ? (
+                  {uploadedImages.length > 0 ? (
                     <button
                       type="button"
                       className="ui-btn-secondary px-4 py-2 text-sm"
-                      onClick={() => setUploadedImage(null)}
+                      onClick={() => setUploadedImages([])}
                       disabled={busy || uploadingImage}
                     >
-                      Clear image
+                      Clear images
                     </button>
                   ) : null}
                 </div>

@@ -65,32 +65,47 @@ const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
   if (!isRecord(value)) return null;
   const name = asString(value.name) || "Untitled Studio World";
   const prompt = asString(value.prompt);
+  const parseSourceImageRecord = (candidate: unknown) => {
+    if (!isRecord(candidate)) return null;
+    return {
+      id: asString(candidate.id),
+      fileName: asString(candidate.fileName),
+      mimeType: asString(candidate.mimeType),
+      width:
+        typeof candidate.width === "number" && Number.isFinite(candidate.width)
+          ? candidate.width
+          : 0,
+      height:
+        typeof candidate.height === "number" && Number.isFinite(candidate.height)
+          ? candidate.height
+          : 0,
+      sizeBytes:
+        typeof candidate.sizeBytes === "number" && Number.isFinite(candidate.sizeBytes)
+          ? candidate.sizeBytes
+          : 0,
+      storagePath: asString(candidate.storagePath),
+      dataUrl: asString(candidate.dataUrl),
+      palette: Array.isArray(candidate.palette)
+        ? candidate.palette.filter((entry): entry is string => typeof entry === "string")
+        : [],
+      intensitySamples: Array.isArray(candidate.intensitySamples)
+        ? candidate.intensitySamples.filter(
+            (entry): entry is number => typeof entry === "number" && Number.isFinite(entry),
+          )
+        : [],
+    };
+  };
   const sourceImage = isRecord(value.sourceImage)
-    ? {
-        id: asString(value.sourceImage.id),
-        fileName: asString(value.sourceImage.fileName),
-        mimeType: asString(value.sourceImage.mimeType),
-        width:
-          typeof value.sourceImage.width === "number" && Number.isFinite(value.sourceImage.width)
-            ? value.sourceImage.width
-            : 0,
-        height:
-          typeof value.sourceImage.height === "number" && Number.isFinite(value.sourceImage.height)
-            ? value.sourceImage.height
-            : 0,
-        sizeBytes:
-          typeof value.sourceImage.sizeBytes === "number" &&
-          Number.isFinite(value.sourceImage.sizeBytes)
-            ? value.sourceImage.sizeBytes
-            : 0,
-        storagePath: asString(value.sourceImage.storagePath),
-        dataUrl: asString(value.sourceImage.dataUrl),
-        palette: Array.isArray(value.sourceImage.palette)
-          ? value.sourceImage.palette.filter((entry): entry is string => typeof entry === "string")
-          : [],
-      }
+    ? parseSourceImageRecord(value.sourceImage)
     : null;
-  if (!prompt && !sourceImage) return null;
+  const sourceImages = Array.isArray(value.sourceImages)
+    ? value.sourceImages
+        .map(parseSourceImageRecord)
+        .filter((entry): entry is NonNullable<ReturnType<typeof parseSourceImageRecord>> => Boolean(entry))
+    : sourceImage
+      ? [sourceImage]
+      : [];
+  if (!prompt && sourceImages.length === 0) return null;
   const rawSeed = value.seed;
   const seed =
     typeof rawSeed === "number" && Number.isFinite(rawSeed) ? rawSeed : null;
@@ -101,7 +116,8 @@ const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
     scale: parseScale(value.scale),
     focus: parseFocus(value.focus),
     seed,
-    sourceImage,
+    sourceImage: sourceImages[0] ?? null,
+    sourceImages,
     imageMode: value.imageMode === "mesh" ? "mesh" : "avatar",
     provider: parseProvider(value.provider),
     adapterId:
@@ -355,11 +371,11 @@ export async function POST(request: Request) {
       }
       if (
         input.provider === "self_hosted" &&
-        input.sourceImage &&
+        Array.isArray(input.sourceImages) && input.sourceImages.length > 0 &&
         isRealStudioAiEnabled()
       ) {
         const taskId = await createSelfHostedImageTo3dTask({
-          sourceImage: input.sourceImage,
+          sourceImages: input.sourceImages ?? (input.sourceImage ? [input.sourceImage] : []),
           prompt: input.prompt,
           mode: "image_mesh",
           adapterId: input.adapterId,

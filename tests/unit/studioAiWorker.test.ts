@@ -46,6 +46,10 @@ describe("studio AI worker contract", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           image_url: `data:image/png;base64,${ONE_BY_ONE_PNG.toString("base64")}`,
+          image_urls: [
+            `data:image/png;base64,${ONE_BY_ONE_PNG.toString("base64")}`,
+            `data:image/png;base64,${ONE_BY_ONE_PNG.toString("base64")}`,
+          ],
           model_type: "standard",
           adapter_id: "portrait-volume",
           texture_prompt: "portrait",

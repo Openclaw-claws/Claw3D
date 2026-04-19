@@ -330,4 +330,70 @@ describe("studio world route", () => {
     expect(body.providerAvailability?.provider).toBe("self_hosted");
     expect(body.providerAvailability?.available).toBe(true);
   });
+
+  it("creates a multi-image mesh project request payload", async () => {
+    tempDir = makeTempDir("studio-world-multiview-route");
+    process.env.OPENCLAW_STATE_DIR = tempDir;
+
+    const pngBytes = Uint8Array.from([
+      137, 80, 78, 71, 13, 10, 26, 10,
+      0, 0, 0, 13, 73, 72, 68, 82,
+      0, 0, 0, 1, 0, 0, 0, 1,
+      8, 6, 0, 0, 0, 31, 21, 196, 137,
+      0, 0, 0, 1, 73, 68, 65, 84,
+      120, 156, 99, 0, 0, 0, 2, 0, 1,
+      229, 39, 212, 162, 0, 0, 0, 0,
+      73, 69, 78, 68, 174, 66, 96, 130,
+    ]);
+
+    const uploadImage = async (name: string) => {
+      const formData = new FormData();
+      formData.append(
+        "image",
+        new File([pngBytes], name, { type: "image/png" }),
+      );
+      const uploadResponse = await POST(
+        new Request("http://localhost/api/studio-world", {
+          method: "POST",
+          body: formData,
+        }),
+      );
+      const uploadBody = (await uploadResponse.json()) as {
+        sourceImage?: Record<string, unknown>;
+      };
+      expect(uploadResponse.status).toBe(200);
+      return uploadBody.sourceImage ?? null;
+    };
+
+    const frontImage = await uploadImage("front.png");
+    const sideImage = await uploadImage("side.png");
+
+    const projectResponse = await POST({
+      text: async () =>
+        JSON.stringify({
+          action: "generate",
+          input: {
+            name: "Multi View Test",
+            prompt: "Front and side reconstruction test.",
+            style: "stylized",
+            scale: "medium",
+            focus: "assets",
+            imageMode: "mesh",
+            sourceImage: frontImage,
+            sourceImages: [frontImage, sideImage],
+          },
+        }),
+    } as unknown as Request);
+
+    const body = (await projectResponse.json()) as {
+      project?: {
+        sourceImages?: Array<{ fileName?: string }>;
+        sceneDraft?: { mode?: string };
+      };
+    };
+
+    expect(projectResponse.status).toBe(200);
+    expect(body.project?.sceneDraft?.mode).toBe("image_mesh");
+    expect(body.project?.sourceImages?.length).toBe(2);
+  });
 });

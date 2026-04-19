@@ -158,14 +158,19 @@ const mapStatus = (status: string | undefined): StudioAiTaskStatus => {
 const buildDataUri = (image: StudioSourceImageRecord) => image.dataUrl;
 
 export const createSelfHostedImageTo3dTask = async (params: {
-  sourceImage: StudioSourceImageRecord;
+  sourceImages: StudioSourceImageRecord[];
   prompt: string;
   mode: StudioWorldGenerationMode;
   adapterId?: string | null;
 }) => {
   const { baseUrl, apiKey } = resolveSelfHostedProviderConfig();
+  const primaryImage = params.sourceImages[0];
+  if (!primaryImage) {
+    throw new Error("At least one source image is required.");
+  }
   const payload = {
-    image_url: buildDataUri(params.sourceImage),
+    image_url: buildDataUri(primaryImage),
+    image_urls: params.sourceImages.slice(1).map(buildDataUri),
     model_type: params.mode === "image_mesh" ? "standard" : "lowpoly",
     ai_model: "latest",
     should_texture: true,

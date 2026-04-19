@@ -105,6 +105,7 @@ export type StudioGenerationInput = {
   focus: StudioWorldFocus;
   seed?: number | null;
   sourceImage?: StudioSourceImageRecord | null;
+  sourceImages?: StudioSourceImageRecord[] | null;
   imageMode?: "avatar" | "mesh";
   provider?: StudioWorldGenerationProvider;
   adapterId?: StudioWorkerAdapterKind | null;
