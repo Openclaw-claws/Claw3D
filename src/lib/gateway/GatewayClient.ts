@@ -1048,11 +1048,12 @@ export const useGatewayConnection = (
   useEffect(() => {
     if (!settingsLoaded) return;
     setAdapterProfiles((current) => {
-      const nextProfile = {
-        url: gatewayUrl.trim(),
-        token,
-      };
       const existing = current[selectedAdapterType];
+      // Never overwrite a stored token with an empty string — the Studio proxy
+      // injects the real token server-side; an empty token in UI state means
+      // "let the proxy handle it", not "clear the saved token".
+      const nextToken = token || existing?.token || "";
+      const nextProfile = { url: gatewayUrl.trim(), token: nextToken };
       if (
         existing &&
         existing.url === nextProfile.url &&
@@ -1072,11 +1073,15 @@ export const useGatewayConnection = (
     const baseline = loadedGatewaySettings.current;
     if (!baseline) return;
     const nextGatewayUrl = gatewayUrl.trim();
+    // Use undefined for the token in the patch when the in-memory token is empty so
+    // that mergeGatewaySettings / mergeGatewayProfiles treats it as "leave unchanged"
+    // rather than overwriting the persisted token with an empty string.
+    const persistToken = token || undefined;
     const nextProfiles = {
       ...adapterProfiles,
       [selectedAdapterType]: {
         url: nextGatewayUrl,
-        token,
+        token: persistToken,
       },
     };
     if (
@@ -1091,7 +1096,7 @@ export const useGatewayConnection = (
       {
         gateway: {
           url: nextGatewayUrl,
-          token,
+          token: persistToken,
           adapterType: selectedAdapterType,
           profiles: nextProfiles,
         },
