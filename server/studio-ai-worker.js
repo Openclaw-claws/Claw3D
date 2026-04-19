@@ -4,11 +4,10 @@ const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 
-const THREE = require("three");
-
 const DEFAULT_PORT = Number.parseInt(process.env.CLAW3D_STUDIO_PROVIDER_PORT || "3333", 10);
 const DEFAULT_HOST = process.env.CLAW3D_STUDIO_PROVIDER_HOST || "127.0.0.1";
 const TASK_TIMEOUT_MS = 1_200;
+const TASK_METADATA_FILENAME = "task.json";
 
 const respondJson = (res, statusCode, body) => {
   res.writeHead(statusCode, {
@@ -56,6 +55,73 @@ const resolveWorkerDir = () => {
   const dir = path.join(resolveStateDir(), "claw3d", "studio-ai-worker");
   ensureDirectory(dir);
   return dir;
+};
+
+const writeTaskMetadata = (taskDir, task) => {
+  const metadata = {
+    id: task.id,
+    adapterId: task.adapterId,
+    status: task.status,
+    progress: task.progress,
+    createdAt: task.createdAt,
+    startedAt: task.startedAt,
+    finishedAt: task.finishedAt,
+    modelPath: task.modelPath ? path.basename(task.modelPath) : null,
+    thumbnailPath: task.thumbnailPath ? path.basename(task.thumbnailPath) : null,
+    errorMessage: task.errorMessage,
+    sourceImagePath: task.sourceImagePath ? path.basename(task.sourceImagePath) : null,
+    palette: task.palette,
+    size: task.size,
+  };
+  fs.writeFileSync(
+    path.join(taskDir, TASK_METADATA_FILENAME),
+    JSON.stringify(metadata, null, 2),
+    "utf8",
+  );
+};
+
+const loadTaskMetadata = (rootDir, taskId) => {
+  const taskDir = path.join(rootDir, taskId);
+  const metadataPath = path.join(taskDir, TASK_METADATA_FILENAME);
+  if (!fs.existsSync(metadataPath)) return null;
+  const raw = JSON.parse(fs.readFileSync(metadataPath, "utf8"));
+  const revivePath = (fileName) => (typeof fileName === "string" && fileName ? path.join(taskDir, fileName) : null);
+  const task = {
+    id: typeof raw.id === "string" ? raw.id : taskId,
+    adapterId: typeof raw.adapterId === "string" && raw.adapterId ? raw.adapterId : "heightfield-relief",
+    status:
+      raw.status === "PENDING" ||
+      raw.status === "IN_PROGRESS" ||
+      raw.status === "SUCCEEDED" ||
+      raw.status === "FAILED" ||
+      raw.status === "CANCELED"
+        ? raw.status
+        : "FAILED",
+    progress: Number.isFinite(raw.progress) ? raw.progress : 0,
+    createdAt: Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now(),
+    startedAt: Number.isFinite(raw.startedAt) ? raw.startedAt : 0,
+    finishedAt: Number.isFinite(raw.finishedAt) ? raw.finishedAt : 0,
+    modelPath: revivePath(raw.modelPath),
+    thumbnailPath: revivePath(raw.thumbnailPath),
+    errorMessage: typeof raw.errorMessage === "string" ? raw.errorMessage : "",
+    sourceImagePath: revivePath(raw.sourceImagePath),
+    palette: Array.isArray(raw.palette) ? raw.palette : [],
+    size:
+      raw.size && typeof raw.size === "object"
+        ? {
+            width: Number.isFinite(raw.size.width) ? raw.size.width : 1024,
+            height: Number.isFinite(raw.size.height) ? raw.size.height : 1024,
+          }
+        : { width: 1024, height: 1024 },
+  };
+  if (task.status === "PENDING" || task.status === "IN_PROGRESS") {
+    task.status = "FAILED";
+    task.progress = 100;
+    task.finishedAt = Date.now();
+    task.errorMessage = "Worker restarted before task completion.";
+    writeTaskMetadata(taskDir, task);
+  }
+  return task;
 };
 
 const hex = (value) => value.toString(16).padStart(2, "0");
@@ -291,11 +357,13 @@ const createTaskStore = () => {
       size: { width: 1024, height: 1024 },
     };
     tasks.set(taskId, task);
+    writeTaskMetadata(taskDir, task);
 
     setTimeout(async () => {
       task.status = "IN_PROGRESS";
       task.progress = 18;
       task.startedAt = Date.now();
+      writeTaskMetadata(taskDir, task);
       try {
         const result = await adapter.generate({
           buffer: params.buffer,
@@ -312,11 +380,13 @@ const createTaskStore = () => {
         task.progress = 100;
         task.status = "SUCCEEDED";
         task.finishedAt = Date.now();
+        writeTaskMetadata(taskDir, task);
       } catch (error) {
         task.status = "FAILED";
         task.progress = 100;
         task.finishedAt = Date.now();
         task.errorMessage = error instanceof Error ? error.message : String(error);
+        writeTaskMetadata(taskDir, task);
       }
     }, TASK_TIMEOUT_MS);
 
@@ -324,6 +394,14 @@ const createTaskStore = () => {
   };
 
   return {
+    initialize() {
+      for (const entry of fs.readdirSync(rootDir, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const task = loadTaskMetadata(rootDir, entry.name);
+        if (!task) continue;
+        tasks.set(task.id, task);
+      }
+    },
     createTask,
     getTask(taskId, baseUrl) {
       const task = tasks.get(taskId);
@@ -344,6 +422,7 @@ const createStudioAiWorkerServer = (params = {}) => {
   const host = params.host || DEFAULT_HOST;
   const port = Number.isFinite(params.port) ? params.port : DEFAULT_PORT;
   const taskStore = createTaskStore();
+  taskStore.initialize();
 
   const server = http.createServer(async (req, res) => {
     if (!req.url) {

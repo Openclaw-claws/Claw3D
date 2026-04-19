@@ -721,7 +721,7 @@ export function StudioWorldScreen() {
                     Project library
                   </div>
                   <div className="mt-1 text-sm text-muted-foreground">
-                    Generated drafts persist locally in Studio.
+                    Generated drafts and worker-backed results persist locally in Studio.
                   </div>
                 </div>
                 <div className="rounded-full border border-border/60 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -781,9 +781,16 @@ export function StudioWorldScreen() {
                       </div>
                       {project.externalModel ? (
                         <div className="mt-3 rounded-xl border border-border/60 bg-surface-1/35 p-2 text-xs text-muted-foreground">
-                          AI task {project.externalModel.status} • {project.externalModel.progress}%.
-                          {project.externalModel.glbUrl ? " GLB ready from self-hosted AI." : ""}
-                          {project.externalModel.errorMessage ? ` ${project.externalModel.errorMessage}` : ""}
+                          <div>
+                            AI task {project.externalModel.status} • {project.externalModel.progress}%.
+                            {project.externalModel.glbUrl ? " GLB ready from self-hosted AI." : ""}
+                            {project.externalModel.errorMessage ? ` ${project.externalModel.errorMessage}` : ""}
+                          </div>
+                          {project.externalModel.glbUrl ? (
+                            <div className="mt-2 font-medium text-foreground">
+                              Worker result is ready and should be treated as the primary artifact.
+                            </div>
+                          ) : null}
                         </div>
                       ) : null}
                       {project.externalModel?.thumbnailUrl ? (
@@ -838,7 +845,7 @@ export function StudioWorldScreen() {
                         {project.externalModel?.glbUrl ? (
                           <button
                             type="button"
-                            className="ui-btn-secondary px-3 py-1.5 text-xs"
+                            className="ui-btn-primary px-3 py-1.5 text-xs"
                             onClick={() => void handleExportProviderGlb(project)}
                             disabled={busy}
                           >

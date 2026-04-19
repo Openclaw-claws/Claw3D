@@ -15,9 +15,7 @@ import {
   buildStudioAiProviderAvailability,
   createSelfHostedImageTo3dTask,
   getSelfHostedImageTo3dTask,
-  getDefaultSelfHostedProviderUrl,
   isRealStudioAiEnabled,
-  resolveStudioAiProvider,
 } from "@/lib/studio-world/provider";
 import {
   createStudioProject,
