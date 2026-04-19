@@ -4,6 +4,8 @@ const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
 const THREE = require("three");
+const { PNG } = require("pngjs");
+const jpeg = require("jpeg-js");
 
 const DEFAULT_PORT = Number.parseInt(process.env.CLAW3D_STUDIO_PROVIDER_PORT || "3333", 10);
 const DEFAULT_HOST = process.env.CLAW3D_STUDIO_PROVIDER_HOST || "127.0.0.1";
@@ -130,6 +132,11 @@ const rgbToHex = (red, green, blue) => `#${hex(red)}${hex(green)}${hex(blue)}`;
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+const smoothstep = (edge0, edge1, value) => {
+  const t = clamp((value - edge0) / Math.max(edge1 - edge0, 1e-6), 0, 1);
+  return t * t * (3 - 2 * t);
+};
+
 const parsePngSize = (buffer) => {
   if (buffer.length < 24) return { width: 1024, height: 1024 };
   const signature = buffer.subarray(0, 8);
@@ -141,8 +148,87 @@ const parsePngSize = (buffer) => {
   };
 };
 
-const sampleIntensityGrid = (buffer, cells = 20) => {
+const decodeRasterImage = (buffer, mimeType) => {
+  const normalized = (mimeType || "").trim().toLowerCase();
+  if (normalized === "image/png") {
+    try {
+      const png = PNG.sync.read(buffer);
+      return {
+        width: png.width,
+        height: png.height,
+        channels: 4,
+        data: png.data,
+      };
+    } catch {
+      const { width, height } = parsePngSize(buffer);
+      return {
+        width,
+        height,
+        channels: 0,
+        data: null,
+      };
+    }
+  }
+  if (normalized === "image/jpeg" || normalized === "image/jpg") {
+    try {
+      const decoded = jpeg.decode(buffer, { useTArray: true });
+      return {
+        width: decoded.width,
+        height: decoded.height,
+        channels: 4,
+        data: decoded.data,
+      };
+    } catch {
+      const { width, height } = parsePngSize(buffer);
+      return {
+        width,
+        height,
+        channels: 0,
+        data: null,
+      };
+    }
+  }
+  const { width, height } = parsePngSize(buffer);
+  return {
+    width,
+    height,
+    channels: 0,
+    data: null,
+  };
+};
+
+const sampleIntensityGrid = (params, cells = 20) => {
+  const { raster, buffer } = params;
   const grid = [];
+  if (raster?.data && raster.width > 0 && raster.height > 0) {
+    const data = raster.data;
+    for (let row = 0; row < cells; row += 1) {
+      const values = [];
+      const y0 = Math.floor((row / cells) * raster.height);
+      const y1 = Math.max(y0 + 1, Math.floor(((row + 1) / cells) * raster.height));
+      for (let col = 0; col < cells; col += 1) {
+        const x0 = Math.floor((col / cells) * raster.width);
+        const x1 = Math.max(x0 + 1, Math.floor(((col + 1) / cells) * raster.width));
+        let total = 0;
+        let count = 0;
+        for (let y = y0; y < y1; y += 1) {
+          for (let x = x0; x < x1; x += 1) {
+            const index = (y * raster.width + x) * 4;
+            const red = data[index] ?? 0;
+            const green = data[index + 1] ?? red;
+            const blue = data[index + 2] ?? green;
+            const alpha = data[index + 3] ?? 255;
+            const luminance = ((red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255) * (alpha / 255);
+            total += luminance;
+            count += 1;
+          }
+        }
+        values.push(clamp(Math.round((total / Math.max(count, 1)) * 1000) / 1000, 0, 1));
+      }
+      grid.push(values);
+    }
+    return grid;
+  }
   const length = Math.max(buffer.length, 3);
   for (let row = 0; row < cells; row += 1) {
     const values = [];
@@ -160,8 +246,41 @@ const sampleIntensityGrid = (buffer, cells = 20) => {
   return grid;
 };
 
-const sampleColorGrid = (buffer, cells = 20) => {
+const sampleColorGrid = (params, cells = 20) => {
+  const { raster, buffer } = params;
   const grid = [];
+  if (raster?.data && raster.width > 0 && raster.height > 0) {
+    const data = raster.data;
+    for (let row = 0; row < cells; row += 1) {
+      const values = [];
+      const y0 = Math.floor((row / cells) * raster.height);
+      const y1 = Math.max(y0 + 1, Math.floor(((row + 1) / cells) * raster.height));
+      for (let col = 0; col < cells; col += 1) {
+        const x0 = Math.floor((col / cells) * raster.width);
+        const x1 = Math.max(x0 + 1, Math.floor(((col + 1) / cells) * raster.width));
+        let redTotal = 0;
+        let greenTotal = 0;
+        let blueTotal = 0;
+        let count = 0;
+        for (let y = y0; y < y1; y += 1) {
+          for (let x = x0; x < x1; x += 1) {
+            const index = (y * raster.width + x) * 4;
+            redTotal += data[index] ?? 0;
+            greenTotal += data[index + 1] ?? data[index] ?? 0;
+            blueTotal += data[index + 2] ?? data[index + 1] ?? 0;
+            count += 1;
+          }
+        }
+        values.push([
+          Math.round(redTotal / Math.max(count, 1)),
+          Math.round(greenTotal / Math.max(count, 1)),
+          Math.round(blueTotal / Math.max(count, 1)),
+        ]);
+      }
+      grid.push(values);
+    }
+    return grid;
+  }
   const length = Math.max(buffer.length, 3);
   for (let row = 0; row < cells; row += 1) {
     const values = [];
@@ -179,8 +298,91 @@ const sampleColorGrid = (buffer, cells = 20) => {
   return grid;
 };
 
-const samplePalette = (buffer) => {
+const smoothGrid = (grid, iterations = 1) => {
+  let current = grid.map((row) => row.slice());
+  for (let iteration = 0; iteration < iterations; iteration += 1) {
+    const next = current.map((row) => row.slice());
+    for (let row = 0; row < current.length; row += 1) {
+      for (let col = 0; col < current[row].length; col += 1) {
+        let total = 0;
+        let count = 0;
+        for (let y = Math.max(0, row - 1); y <= Math.min(current.length - 1, row + 1); y += 1) {
+          for (let x = Math.max(0, col - 1); x <= Math.min(current[row].length - 1, col + 1); x += 1) {
+            total += current[y][x];
+            count += 1;
+          }
+        }
+        next[row][col] = total / Math.max(count, 1);
+      }
+    }
+    current = next;
+  }
+  return current;
+};
+
+const buildPortraitMask = (rows, cols) => {
+  const mask = [];
+  for (let row = 0; row < rows; row += 1) {
+    const y = rows <= 1 ? 0 : row / (rows - 1);
+    const rowValues = [];
+    for (let col = 0; col < cols; col += 1) {
+      const x = cols <= 1 ? 0 : col / (cols - 1);
+      const dx = (x - 0.5) / 0.36;
+      const dy = (y - 0.44) / 0.54;
+      const oval = 1 - clamp(dx * dx + dy * dy, 0, 1.8);
+      const shoulders = 1 - clamp(Math.abs(x - 0.5) / 0.6, 0, 1);
+      const shoulderWeight = smoothstep(0.58, 0.9, y) * shoulders * 0.55;
+      const headWeight = smoothstep(0.02, 0.18, y) * (1 - smoothstep(0.68, 0.95, y));
+      rowValues.push(clamp(oval * headWeight + shoulderWeight, 0, 1));
+    }
+    mask.push(rowValues);
+  }
+  return mask;
+};
+
+const applyPortraitRelief = (intensityGrid) => {
+  const rows = intensityGrid.length;
+  const cols = intensityGrid[0]?.length ?? 0;
+  const smoothed = smoothGrid(intensityGrid, 2);
+  const portraitMask = buildPortraitMask(rows, cols);
+  const refined = smoothed.map((row, rowIndex) =>
+    row.map((value, colIndex) => {
+      const mask = portraitMask[rowIndex]?.[colIndex] ?? 0;
+      const centered = value - 0.5;
+      const sculpted =
+        0.38 +
+        mask * 0.72 +
+        centered * 0.42 +
+        Math.max(0, mask - 0.45) * 0.25;
+      return clamp(sculpted, 0, 1);
+    }),
+  );
+  return smoothGrid(refined, 1);
+};
+
+const samplePalette = (params) => {
+  const { raster, buffer } = params;
   const buckets = new Map();
+  if (raster?.data && raster.width > 0 && raster.height > 0) {
+    const data = raster.data;
+    const step = Math.max(1, Math.floor((raster.width * raster.height) / 1800));
+    for (let pixel = 0; pixel < raster.width * raster.height; pixel += step) {
+      const index = pixel * 4;
+      const red = data[index] ?? 0;
+      const green = data[index + 1] ?? 0;
+      const blue = data[index + 2] ?? 0;
+      const key = `${red >> 4}:${green >> 4}:${blue >> 4}`;
+      const current = buckets.get(key);
+      if (current) {
+        current.count += 1;
+        current.red += red;
+        current.green += green;
+        current.blue += blue;
+      } else {
+        buckets.set(key, { count: 1, red, green, blue });
+      }
+    }
+  } else {
   const step = Math.max(3, Math.floor(buffer.length / 1800));
   for (let index = 0; index + 2 < buffer.length; index += step) {
     const red = buffer[index] ?? 0;
@@ -196,6 +398,7 @@ const samplePalette = (buffer) => {
     } else {
       buckets.set(key, { count: 1, red, green, blue });
     }
+  }
   }
   const colors = Array.from(buckets.values())
     .sort((left, right) => right.count - left.count)
@@ -266,8 +469,9 @@ const decodeImageUrl = async (imageUrl) => {
 const createHeightfieldScene = async (params) => {
   const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
   const { colorGrid, intensityGrid, palette, width, height } = params;
-  const rows = intensityGrid.length;
-  const cols = intensityGrid[0]?.length ?? 0;
+  const refinedIntensity = applyPortraitRelief(intensityGrid);
+  const rows = refinedIntensity.length;
+  const cols = refinedIntensity[0]?.length ?? 0;
 
   const scene = new THREE.Scene();
   const panelWidth = clamp((width / Math.max(height, 1)) * 5.8, 2.8, 7.2);
@@ -289,8 +493,13 @@ const createHeightfieldScene = async (params) => {
   for (let row = 0; row < rows; row += 1) {
     for (let col = 0; col < cols; col += 1) {
       const index = row * cols + col;
-      const intensity = intensityGrid[row]?.[col] ?? 0.5;
-      positions.setZ(index, intensity * 0.9);
+      const intensity = refinedIntensity[row]?.[col] ?? 0.5;
+      const xNormalized = cols <= 1 ? 0 : col / (cols - 1);
+      const yNormalized = rows <= 1 ? 0 : row / (rows - 1);
+      const edgeFadeX = smoothstep(0, 0.12, xNormalized) * (1 - smoothstep(0.88, 1, xNormalized));
+      const edgeFadeY = smoothstep(0, 0.08, yNormalized) * (1 - smoothstep(0.92, 1, yNormalized));
+      const edgeFade = clamp(edgeFadeX * edgeFadeY, 0, 1);
+      positions.setZ(index, intensity * edgeFade * 1.25);
       const rgb = colorGrid[row]?.[col] ?? [127, 127, 127];
       colors[index * 3] = (rgb[0] ?? 127) / 255;
       colors[index * 3 + 1] = (rgb[1] ?? 127) / 255;
@@ -306,8 +515,9 @@ const createHeightfieldScene = async (params) => {
     new THREE.MeshStandardMaterial({
       vertexColors: true,
       side: THREE.DoubleSide,
-      roughness: 0.82,
-      metalness: 0.03,
+      roughness: 0.76,
+      metalness: 0.04,
+      flatShading: false,
     }),
   );
   relief.position.set(0, panelHeight * 0.5, 0.02);
@@ -356,10 +566,15 @@ const createHeightfieldScene = async (params) => {
 const createHeightfieldAdapter = () => ({
   id: "heightfield-relief",
   async generate(params) {
-    const size = parsePngSize(params.buffer);
-    const palette = samplePalette(params.buffer);
-    const intensityGrid = sampleIntensityGrid(params.buffer, 20);
-    const colorGrid = sampleColorGrid(params.buffer, 20);
+    const raster = decodeRasterImage(params.buffer, params.mimeType);
+    const size = {
+      width: raster.width || parsePngSize(params.buffer).width,
+      height: raster.height || parsePngSize(params.buffer).height,
+    };
+    const sampleParams = { raster, buffer: params.buffer };
+    const palette = samplePalette(sampleParams);
+    const intensityGrid = sampleIntensityGrid(sampleParams, 24);
+    const colorGrid = sampleColorGrid(sampleParams, 24);
     const glb = await createHeightfieldScene({
       colorGrid,
       intensityGrid,
@@ -455,6 +670,7 @@ const createTaskStore = () => {
       try {
         const result = await adapter.generate({
           buffer: params.buffer,
+          mimeType: params.mimeType || "image/png",
           sourceImagePath,
           prompt: params.prompt || "",
           mode: params.mode || "image_mesh",
@@ -554,6 +770,14 @@ const createStudioAiWorkerServer = (params = {}) => {
                 : "",
             mode:
               body.model_type === "lowpoly" ? "image_avatar" : "image_mesh",
+            mimeType:
+              typeof body.image_url === "string" && body.image_url.startsWith("data:image/jpeg")
+                ? "image/jpeg"
+                : typeof body.image_url === "string" && body.image_url.startsWith("data:image/png")
+                  ? "image/png"
+                  : typeof body.image_url === "string" && body.image_url.startsWith("data:image/webp")
+                    ? "image/webp"
+                    : "image/png",
           },
           baseUrl,
         );
