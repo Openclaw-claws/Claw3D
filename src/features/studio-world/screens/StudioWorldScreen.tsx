@@ -860,6 +860,28 @@ export function StudioWorldScreen() {
                             {project.externalModel.glbUrl ? " GLB ready from self-hosted AI." : ""}
                             {project.externalModel.errorMessage ? ` ${project.externalModel.errorMessage}` : ""}
                           </div>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {project.externalModel.adapterId ? (
+                              <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                                {project.externalModel.adapterId}
+                              </span>
+                            ) : null}
+                            {project.externalModel.width && project.externalModel.height ? (
+                              <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                                {project.externalModel.width} x {project.externalModel.height}
+                              </span>
+                            ) : null}
+                            {Array.isArray(project.externalModel.palette)
+                              ? project.externalModel.palette.slice(0, 4).map((color) => (
+                                  <span
+                                    key={color}
+                                    className="inline-block h-5 w-5 rounded-full border border-black/15"
+                                    style={{ backgroundColor: color }}
+                                    title={color}
+                                  />
+                                ))
+                              : null}
+                          </div>
                           {project.externalModel.glbUrl ? (
                             <div className="mt-2 font-medium text-foreground">
                               Worker result is ready and should be treated as the primary artifact.

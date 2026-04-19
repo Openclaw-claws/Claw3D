@@ -20,8 +20,12 @@ export type StudioAiTaskRecord = {
   mode: StudioWorldGenerationMode;
   status: StudioAiTaskStatus;
   progress: number;
+  adapterId: "portrait_volume" | "heightfield_relief" | null;
   modelGlbUrl: string | null;
   thumbnailUrl: string | null;
+  width: number | null;
+  height: number | null;
+  palette: string[];
   taskErrorMessage: string | null;
   createdAt: string;
   updatedAt: string;
@@ -33,8 +37,12 @@ type SelfHostedCreateResponse = {
 
 type SelfHostedTaskResponse = {
   id?: string;
+  adapter_id?: string;
   status?: string;
   progress?: number;
+  width?: number;
+  height?: number;
+  palette?: string[];
   thumbnail_url?: string;
   model_urls?: {
     glb?: string;
@@ -246,8 +254,23 @@ export const getSelfHostedImageTo3dTask = async (
       typeof body.progress === "number" && Number.isFinite(body.progress)
         ? body.progress
         : 0,
+    adapterId:
+      body.adapter_id === "portrait_volume" || body.adapter_id === "heightfield_relief"
+        ? body.adapter_id
+        : null,
     modelGlbUrl: body.model_urls?.glb ?? null,
     thumbnailUrl: body.thumbnail_url ?? null,
+    width:
+      typeof body.width === "number" && Number.isFinite(body.width)
+        ? body.width
+        : null,
+    height:
+      typeof body.height === "number" && Number.isFinite(body.height)
+        ? body.height
+        : null,
+    palette: Array.isArray(body.palette)
+      ? body.palette.filter((entry): entry is string => typeof entry === "string")
+      : [],
     taskErrorMessage: body.task_error?.message?.trim() || null,
     createdAt: now,
     updatedAt: now,

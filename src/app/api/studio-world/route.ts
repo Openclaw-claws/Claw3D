@@ -266,6 +266,10 @@ export async function GET(request: Request) {
         glbUrl: task.modelGlbUrl,
         thumbnailUrl: task.thumbnailUrl,
         textureUrls: [],
+        adapterId: task.adapterId ?? null,
+        width: task.width ?? null,
+        height: task.height ?? null,
+        palette: task.palette ?? [],
         errorMessage: task.taskErrorMessage,
       });
       return NextResponse.json(
