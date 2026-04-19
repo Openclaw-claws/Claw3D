@@ -11,15 +11,26 @@ import {
 } from "@/lib/office/store";
 import { buildOfficeMapFromStudioProject } from "@/lib/studio-world/office";
 import {
+  buildRealAiSummary,
+  createMeshyImageTo3dTask,
+  getMeshyImageTo3dTask,
+  isRealStudioAiEnabled,
+  resolveStudioAiProvider,
+} from "@/lib/studio-world/provider";
+import {
   createStudioProject,
+  createStudioPendingProject,
   createStudioSourceImage,
   deleteStudioProject,
   getStudioProject,
   listStudioProjects,
+  updateStudioProjectExternalModel,
 } from "@/lib/studio-world/store";
 import type {
   StudioGenerationInput,
+  StudioProviderAvailability,
   StudioWorldFocus,
+  StudioWorldGenerationProvider,
   StudioWorldScale,
   StudioWorldStyle,
 } from "@/lib/studio-world/types";
@@ -46,6 +57,9 @@ const parseScale = (value: unknown): StudioWorldScale =>
 
 const parseFocus = (value: unknown): StudioWorldFocus =>
   value === "assets" || value === "animation" ? value : "world";
+
+const parseProvider = (value: unknown): StudioWorldGenerationProvider =>
+  value === "meshy" ? "meshy" : "local";
 
 const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
   if (!isRecord(value)) return null;
@@ -89,6 +103,28 @@ const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
     seed,
     sourceImage,
     imageMode: value.imageMode === "mesh" ? "mesh" : "avatar",
+    provider: parseProvider(value.provider),
+  };
+};
+
+const buildProviderAvailability = (): StudioProviderAvailability => {
+  const provider = resolveStudioAiProvider();
+  if (provider === "meshy") {
+    const enabled = isRealStudioAiEnabled();
+    return {
+      provider,
+      available: enabled,
+      configured: true,
+      message: enabled
+        ? "Real AI image-to-3D is enabled."
+        : "Meshy is configured but disabled until CLAW3D_STUDIO_ENABLE_REAL_AI is enabled.",
+    };
+  }
+  return {
+    provider: "local",
+    available: false,
+    configured: false,
+    message: "No real AI provider is configured. Studio will use local generators.",
   };
 };
 
@@ -179,8 +215,72 @@ export async function GET(request: Request) {
         { headers: { "Cache-Control": "no-store" } },
       );
     }
+    if (action === "provider-status") {
+      return NextResponse.json(
+        { providerAvailability: buildProviderAvailability() },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
+    if (action === "task-status") {
+      if (!projectId) {
+        return NextResponse.json(
+          { error: "projectId is required for task status." },
+          { status: 400 },
+        );
+      }
+      const project = getStudioProject(projectId);
+      if (!project?.externalModel?.taskId) {
+        return NextResponse.json(
+          { error: "No external model task exists for this project." },
+          { status: 400 },
+        );
+      }
+      if (project.externalModel.provider !== "meshy") {
+        return NextResponse.json(
+          { error: "Unsupported provider for task status." },
+          { status: 400 },
+        );
+      }
+      const task = await getMeshyImageTo3dTask(project.externalModel.taskId);
+      const updatedProject = updateStudioProjectExternalModel(projectId, {
+        provider: "meshy",
+        taskId: task.id,
+        status:
+          task.status === "PENDING"
+            ? "pending"
+            : task.status === "IN_PROGRESS"
+              ? "in_progress"
+              : task.status === "FAILED" || task.status === "CANCELED"
+                ? "failed"
+                : "completed",
+        progress: task.progress,
+        glbUrl: task.modelGlbUrl,
+        thumbnailUrl: task.thumbnailUrl,
+        textureUrls: [],
+        errorMessage: task.taskErrorMessage,
+      });
+      return NextResponse.json(
+        {
+          project: {
+            ...updatedProject,
+            latestJob: {
+              ...updatedProject.latestJob,
+              summary: buildRealAiSummary({
+                project: updatedProject,
+                task,
+              }),
+            },
+          },
+          providerTask: task,
+        },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     return NextResponse.json(
-      { projects: listStudioProjects() },
+      {
+        projects: listStudioProjects(),
+        providerAvailability: buildProviderAvailability(),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -267,8 +367,36 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
+      if (
+        input.provider === "meshy" &&
+        input.sourceImage &&
+        isRealStudioAiEnabled()
+      ) {
+        const taskId = await createMeshyImageTo3dTask({
+          sourceImage: input.sourceImage,
+          prompt: input.prompt,
+          mode: "ai_image_to_3d",
+        });
+        const project = createStudioPendingProject({
+          input: {
+            ...input,
+            provider: "meshy",
+          },
+          providerTaskId: taskId,
+        });
+        return NextResponse.json(
+          {
+            project,
+            providerAvailability: buildProviderAvailability(),
+          },
+          { headers: { "Cache-Control": "no-store" } },
+        );
+      }
       return NextResponse.json(
-        { project: createStudioProject(input) },
+        {
+          project: createStudioProject(input),
+          providerAvailability: buildProviderAvailability(),
+        },
         { headers: { "Cache-Control": "no-store" } },
       );
     }

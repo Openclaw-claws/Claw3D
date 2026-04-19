@@ -7,9 +7,11 @@ import { HeaderBar } from "@/features/agents/components/HeaderBar";
 import { exportStudioProjectGlb } from "@/features/studio-world/export/exportGlb";
 import { StudioWorldPreview } from "@/features/studio-world/preview/StudioWorldPreview";
 import type {
+  StudioProviderAvailability,
   StudioProjectRecord,
   StudioSourceImageRecord,
   StudioWorldFocus,
+  StudioWorldGenerationProvider,
   StudioWorldScale,
   StudioWorldStyle,
 } from "@/lib/studio-world/types";
@@ -42,6 +44,15 @@ type StudioWorldResponse = {
   projects?: StudioProjectRecord[];
   project?: StudioProjectRecord;
   sourceImage?: StudioSourceImageRecord;
+  providerAvailability?: StudioProviderAvailability;
+  providerTask?: {
+    id: string;
+    status: string;
+    progress: number;
+    modelGlbUrl: string | null;
+    thumbnailUrl: string | null;
+    taskErrorMessage: string | null;
+  };
   office?: {
     workspaceId: string;
     officeId: string;
@@ -91,6 +102,8 @@ export function StudioWorldScreen() {
   const [uploadedImage, setUploadedImage] = useState<StudioSourceImageRecord | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imageMode, setImageMode] = useState<"avatar" | "mesh">("avatar");
+  const [provider, setProvider] = useState<StudioWorldGenerationProvider>("local");
+  const [providerAvailability, setProviderAvailability] = useState<StudioProviderAvailability | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedProject = useMemo(
@@ -109,6 +122,7 @@ export function StudioWorldScreen() {
       const nextProjects = body.projects ?? [];
       setProjects(nextProjects);
       setSelectedProjectId((current) => current ?? nextProjects[0]?.id ?? null);
+      setProviderAvailability(body.providerAvailability ?? null);
       setError(null);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Failed to load studio projects.");
@@ -124,6 +138,48 @@ export function StudioWorldScreen() {
   useEffect(() => {
     if (!selectedProject) return;
     setUploadedImage(selectedProject.sourceImages[0] ?? null);
+    setProvider(selectedProject.provider ?? "local");
+  }, [selectedProject]);
+
+  useEffect(() => {
+    if (!selectedProject?.externalModel?.taskId) return;
+    if (
+      selectedProject.externalModel.status !== "pending" &&
+      selectedProject.externalModel.status !== "in_progress"
+    ) {
+      return;
+    }
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const response = await fetch(
+          `/api/studio-world?action=task-status&projectId=${encodeURIComponent(selectedProject.id)}`,
+          { cache: "no-store" },
+        );
+        const body = (await response.json()) as StudioWorldResponse;
+        if (!response.ok || !body.project || cancelled) {
+          return;
+        }
+        setProjects((current) =>
+          current.map((entry) => (entry.id === body.project!.id ? body.project! : entry)),
+        );
+        if (body.providerTask?.status === "SUCCEEDED") {
+          setStatusLine("Real AI image-to-3D task completed.");
+        } else if (body.providerTask?.status === "FAILED" || body.providerTask?.status === "CANCELED") {
+          setStatusLine(body.providerTask.taskErrorMessage || "Real AI image-to-3D task failed.");
+        }
+      } catch {
+        // ignore transient poll failures; next interval may succeed
+      }
+    };
+    void poll();
+    const intervalId = window.setInterval(() => {
+      void poll();
+    }, 5000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
   }, [selectedProject]);
 
   const handleImageUpload = async (file: File) => {
@@ -177,6 +233,7 @@ export function StudioWorldScreen() {
             seed: Number.isFinite(parsedSeed) ? parsedSeed : null,
             sourceImage: uploadedImage,
             imageMode,
+            provider,
           },
         }),
       });
@@ -186,8 +243,13 @@ export function StudioWorldScreen() {
       }
       setProjects((current) => [body.project!, ...current.filter((entry) => entry.id !== body.project!.id)]);
       setSelectedProjectId(body.project.id);
+      setProviderAvailability(body.providerAvailability ?? null);
       setError(null);
-      setStatusLine(`Generated ${body.project.name}.`);
+      setStatusLine(
+        body.project.latestJob.status === "pending"
+          ? `Submitted ${body.project.name} to real AI generation.`
+          : `Generated ${body.project.name}.`,
+      );
     } catch (generationError) {
       setError(
         generationError instanceof Error
@@ -319,6 +381,13 @@ export function StudioWorldScreen() {
                 Claw3D Studio runs locally in this app and does not require a gateway connection for world building or
                 asset generation.
               </p>
+              <div className="mt-3 rounded-2xl border border-border/60 bg-surface-1/35 p-3 text-sm text-muted-foreground">
+                <div className="font-medium text-foreground">AI provider status</div>
+                <div className="mt-1">
+                  {providerAvailability?.message ??
+                    "Local generation is available. Configure a real provider to enable model-backed image-to-3D."}
+                </div>
+              </div>
               <div className="mt-5 space-y-4">
                 <div className="rounded-2xl border border-border/60 bg-surface-1/35 p-3">
                   <div className="flex items-start justify-between gap-3">
@@ -438,6 +507,22 @@ export function StudioWorldScreen() {
                   />
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-xs font-medium text-foreground">Generation provider</span>
+                    <select
+                      className="ui-input w-full"
+                      value={provider}
+                      onChange={(event) => setProvider(event.target.value as StudioWorldGenerationProvider)}
+                    >
+                      <option value="local">Local Studio</option>
+                      <option
+                        value="meshy"
+                        disabled={!providerAvailability?.available}
+                      >
+                        Meshy AI
+                      </option>
+                    </select>
+                  </label>
                   <label className="block">
                     <span className="mb-1.5 block text-xs font-medium text-foreground">Style</span>
                     <select className="ui-input w-full" value={style} onChange={(event) => setStyle(event.target.value as StudioWorldStyle)}>
@@ -600,13 +685,25 @@ export function StudioWorldScreen() {
                               ? "image avatar"
                               : project.mode === "image_mesh"
                                 ? "image mesh"
+                                : project.mode === "ai_image_to_3d"
+                                  ? "ai image-to-3d"
                                 : "text scene"}
+                          </span>
+                          <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                            {project.provider}
                           </span>
                         </div>
                       </button>
                       <div className="mt-3 text-[11px] text-muted-foreground">
                         Updated {formatTimestamp(project.updatedAt)}.
                       </div>
+                      {project.externalModel ? (
+                        <div className="mt-3 rounded-xl border border-border/60 bg-surface-1/35 p-2 text-xs text-muted-foreground">
+                          Provider task {project.externalModel.status} • {project.externalModel.progress}%.
+                          {project.externalModel.glbUrl ? " GLB ready from provider." : ""}
+                          {project.externalModel.errorMessage ? ` ${project.externalModel.errorMessage}` : ""}
+                        </div>
+                      ) : null}
                       {project.sourceImages[0] ? (
                         <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-surface-1/35 p-2">
                           <Image

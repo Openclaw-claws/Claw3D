@@ -2,18 +2,25 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DELETE, GET, POST } from "@/app/api/studio-world/route";
-
 const makeTempDir = (name: string) => fs.mkdtempSync(path.join(os.tmpdir(), `${name}-`));
 
 describe("studio world route", () => {
   const priorStateDir = process.env.OPENCLAW_STATE_DIR;
+  const priorMeshyApiKey = process.env.MESHY_API_KEY;
+  const priorRealAi = process.env.CLAW3D_STUDIO_ENABLE_REAL_AI;
   let tempDir: string | null = null;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
 
   afterEach(() => {
     process.env.OPENCLAW_STATE_DIR = priorStateDir;
+    process.env.MESHY_API_KEY = priorMeshyApiKey;
+    process.env.CLAW3D_STUDIO_ENABLE_REAL_AI = priorRealAi;
     if (tempDir) {
       fs.rmSync(tempDir, { recursive: true, force: true });
       tempDir = null;
@@ -239,5 +246,87 @@ describe("studio world route", () => {
         (asset) => asset.id === "mesh_panel",
       ),
     ).toBe(true);
+  });
+
+  it("submits a real AI image-to-3D task when Meshy is configured", async () => {
+    tempDir = makeTempDir("studio-world-meshy-route");
+    process.env.OPENCLAW_STATE_DIR = tempDir;
+    process.env.MESHY_API_KEY = "msy_dummy_api_key_for_test_mode_12345678";
+    process.env.CLAW3D_STUDIO_ENABLE_REAL_AI = "true";
+
+    const pngBytes = Uint8Array.from([
+      137, 80, 78, 71, 13, 10, 26, 10,
+      0, 0, 0, 13, 73, 72, 68, 82,
+      0, 0, 0, 1, 0, 0, 0, 1,
+      8, 6, 0, 0, 0, 31, 21, 196, 137,
+      0, 0, 0, 1, 73, 68, 65, 84,
+      120, 156, 99, 0, 0, 0, 2, 0, 1,
+      229, 39, 212, 162, 0, 0, 0, 0,
+      73, 69, 78, 68, 174, 66, 96, 130,
+    ]);
+
+    const formData = new FormData();
+    formData.append(
+      "image",
+      new File([pngBytes], "remote.png", { type: "image/png" }),
+    );
+
+    const uploadResponse = await POST(
+      new Request("http://localhost/api/studio-world", {
+        method: "POST",
+        body: formData,
+      }),
+    );
+    const uploadBody = (await uploadResponse.json()) as {
+      sourceImage?: Record<string, unknown>;
+    };
+    expect(uploadResponse.status).toBe(200);
+
+    globalThis.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes("/openapi/v1/image-to-3d") && init?.method === "POST") {
+        return new Response(JSON.stringify({ result: "task_test_123" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      throw new Error(`Unexpected fetch call: ${url}`);
+    }) as typeof fetch;
+
+    const response = await POST({
+      text: async () =>
+        JSON.stringify({
+          action: "generate",
+          input: {
+            name: "Remote AI Test",
+            prompt: "High-detail object from uploaded image.",
+            style: "realistic",
+            scale: "medium",
+            focus: "assets",
+            provider: "meshy",
+            sourceImage: uploadBody.sourceImage,
+          },
+        }),
+    } as unknown as Request);
+
+    const body = (await response.json()) as {
+      project?: {
+        provider?: string;
+        mode?: string;
+        latestJob?: { status?: string; providerTaskId?: string | null };
+        externalModel?: { taskId?: string; status?: string };
+      };
+      providerAvailability?: { provider?: string; available?: boolean };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.project?.provider).toBe("meshy");
+    expect(body.project?.mode).toBe("ai_image_to_3d");
+    expect(body.project?.latestJob?.status).toBe("pending");
+    expect(body.project?.latestJob?.providerTaskId).toBe("task_test_123");
+    expect(body.project?.externalModel?.taskId).toBe("task_test_123");
+    expect(body.project?.externalModel?.status).toBe("pending");
+    expect(body.providerAvailability?.provider).toBe("meshy");
+    expect(body.providerAvailability?.available).toBe(true);
   });
 });

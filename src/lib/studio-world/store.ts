@@ -13,6 +13,8 @@ import {
 import type {
   StudioGenerationInput,
   StudioGenerationJobRecord,
+  StudioExternalModelRecord,
+  StudioWorldGenerationProvider,
   StudioProjectRecord,
   StudioProjectsStore,
   StudioSourceImageRecord,
@@ -92,18 +94,41 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
             ? entry.focus
             : "world",
         seed: asNumber(entry.seed, 0),
-        mode: entry.mode === "image_avatar" ? "image_avatar" : "text_scene",
+        mode:
+          entry.mode === "image_avatar" ||
+          entry.mode === "image_mesh" ||
+          entry.mode === "ai_image_to_3d"
+            ? entry.mode
+            : "text_scene",
+        provider: entry.provider === "meshy" ? "meshy" : "local",
         createdAt,
         updatedAt,
         latestJob: {
           id: asString(entry.latestJob.id, "job"),
-          provider: asString(entry.latestJob.provider, "clean-room-procedural"),
-          status: "completed",
+          provider: entry.latestJob.provider === "meshy" ? "meshy" : "local",
+          status:
+            entry.latestJob.status === "pending" ||
+            entry.latestJob.status === "in_progress" ||
+            entry.latestJob.status === "failed"
+              ? entry.latestJob.status
+              : "completed",
           createdAt: asString(entry.latestJob.createdAt, createdAt),
           finishedAt: asString(entry.latestJob.finishedAt, updatedAt),
           summary: asString(entry.latestJob.summary, ""),
           assetCount: asNumber(entry.latestJob.assetCount, 0),
-          mode: entry.latestJob.mode === "image_avatar" ? "image_avatar" : "text_scene",
+          mode:
+            entry.latestJob.mode === "image_avatar" ||
+            entry.latestJob.mode === "image_mesh" ||
+            entry.latestJob.mode === "ai_image_to_3d"
+              ? entry.latestJob.mode
+              : "text_scene",
+          progress:
+            typeof entry.latestJob.progress === "number" &&
+            Number.isFinite(entry.latestJob.progress)
+              ? entry.latestJob.progress
+              : undefined,
+          providerTaskId: asString(entry.latestJob.providerTaskId, "").trim() || null,
+          errorMessage: asString(entry.latestJob.errorMessage, "").trim() || null,
         },
         sourceImages: Array.isArray(entry.sourceImages)
           ? entry.sourceImages.filter((image): image is StudioSourceImageRecord => {
@@ -122,6 +147,30 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
             })
           : [],
         sceneDraft: entry.sceneDraft as StudioProjectRecord["sceneDraft"],
+        externalModel: isRecord(entry.externalModel)
+          ? ({
+              provider: entry.externalModel.provider === "meshy" ? "meshy" : "local",
+              taskId: asString(entry.externalModel.taskId),
+              status:
+                entry.externalModel.status === "pending" ||
+                entry.externalModel.status === "in_progress" ||
+                entry.externalModel.status === "failed"
+                  ? entry.externalModel.status
+                  : "completed",
+              progress: asNumber(entry.externalModel.progress, 0),
+              glbUrl: asString(entry.externalModel.glbUrl, "").trim() || null,
+              thumbnailUrl:
+                asString(entry.externalModel.thumbnailUrl, "").trim() || null,
+              textureUrls: Array.isArray(entry.externalModel.textureUrls)
+                ? entry.externalModel.textureUrls.filter((item): item is Record<string, string> =>
+                    Boolean(item && typeof item === "object" && !Array.isArray(item)),
+                  )
+                : [],
+              errorMessage:
+                asString(entry.externalModel.errorMessage, "").trim() || null,
+              usingTestMode: entry.externalModel.usingTestMode === true,
+            } satisfies StudioExternalModelRecord)
+          : null,
       };
     })
     .filter((entry): entry is StudioProjectRecord => Boolean(entry))
@@ -223,9 +272,10 @@ export const createStudioProject = (input: StudioGenerationInput) => {
   const createdAt = new Date().toISOString();
   const seed = resolveGenerationSeed(input);
   const sceneDraft = buildStudioWorldDraft(input);
+  const provider: StudioWorldGenerationProvider = input.provider === "meshy" ? "meshy" : "local";
   const latestJob: StudioGenerationJobRecord = {
     id: createJobId(),
-    provider: "clean-room-procedural",
+    provider,
     status: "completed",
     createdAt,
     finishedAt: createdAt,
@@ -242,17 +292,125 @@ export const createStudioProject = (input: StudioGenerationInput) => {
     focus: input.focus,
     seed,
     mode: sceneDraft.mode,
+    provider,
     createdAt,
     updatedAt: createdAt,
     latestJob,
     sourceImages: input.sourceImage ? [input.sourceImage] : [],
     sceneDraft,
+    externalModel: null,
   };
   store.projects = [project, ...store.projects].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt),
   );
   writeStore(store);
   return project;
+};
+
+export const createStudioPendingProject = (params: {
+  input: StudioGenerationInput;
+  providerTaskId: string;
+  usingTestMode?: boolean;
+}) => {
+  const store = readStore();
+  const createdAt = new Date().toISOString();
+  const seed = resolveGenerationSeed(params.input);
+  const sceneDraft = buildStudioWorldDraft({
+    ...params.input,
+    sourceImage: params.input.sourceImage,
+    imageMode: params.input.imageMode === "mesh" ? "mesh" : "avatar",
+  });
+  const mode = "ai_image_to_3d";
+  const provider: StudioWorldGenerationProvider = "meshy";
+  const latestJob: StudioGenerationJobRecord = {
+    id: createJobId(),
+    provider,
+    status: "pending",
+    createdAt,
+    finishedAt: createdAt,
+    summary: "Submitted real AI image-to-3D task.",
+    assetCount: 0,
+    mode,
+    progress: 0,
+    providerTaskId: params.providerTaskId,
+    errorMessage: null,
+  };
+  const project: StudioProjectRecord = {
+    id: createProjectId(params.input.name),
+    name: params.input.name.trim() || "Untitled AI Studio World",
+    prompt: params.input.prompt.trim(),
+    style: params.input.style,
+    scale: params.input.scale,
+    focus: params.input.focus,
+    seed,
+    mode,
+    provider,
+    createdAt,
+    updatedAt: createdAt,
+    latestJob,
+    sourceImages: params.input.sourceImage ? [params.input.sourceImage] : [],
+    sceneDraft: {
+      ...sceneDraft,
+      mode,
+      notes: [
+        `Real AI image-to-3D task submitted to ${provider}.`,
+        `Provider task id: ${params.providerTaskId}.`,
+      ],
+    },
+    externalModel: {
+      provider,
+      taskId: params.providerTaskId,
+      status: "pending",
+      progress: 0,
+      glbUrl: null,
+      thumbnailUrl: null,
+      textureUrls: [],
+      errorMessage: null,
+      usingTestMode: params.usingTestMode === true,
+    },
+  };
+  store.projects = [project, ...store.projects].sort((left, right) =>
+    right.updatedAt.localeCompare(left.updatedAt),
+  );
+  writeStore(store);
+  return project;
+};
+
+export const updateStudioProjectExternalModel = (
+  projectId: string,
+  externalModel: StudioExternalModelRecord,
+) => {
+  const store = readStore();
+  const target = store.projects.find((entry) => entry.id === projectId);
+  if (!target) {
+    throw new Error("Studio project not found.");
+  }
+  target.externalModel = externalModel;
+  target.provider = externalModel.provider;
+  target.latestJob = {
+    ...target.latestJob,
+    provider: externalModel.provider,
+    status:
+      externalModel.status === "pending" || externalModel.status === "in_progress"
+        ? externalModel.status
+        : externalModel.status === "failed"
+          ? "failed"
+          : "completed",
+    progress: externalModel.progress,
+    providerTaskId: externalModel.taskId,
+    errorMessage: externalModel.errorMessage ?? null,
+    finishedAt: new Date().toISOString(),
+    summary:
+      externalModel.status === "completed"
+        ? "Real AI image-to-3D task completed."
+        : externalModel.status === "failed"
+          ? externalModel.errorMessage ?? "Real AI image-to-3D task failed."
+          : "Real AI image-to-3D task in progress.",
+  };
+  target.updatedAt = new Date().toISOString();
+  store.projects.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  writeStore(store);
+  return target;
 };
 
 export const updateStudioProject = (

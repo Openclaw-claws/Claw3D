@@ -37,7 +37,10 @@ export type StudioWorldAssetKind =
 export type StudioWorldGenerationMode =
   | "text_scene"
   | "image_avatar"
-  | "image_mesh";
+  | "image_mesh"
+  | "ai_image_to_3d";
+
+export type StudioWorldGenerationProvider = "local" | "meshy";
 
 export type StudioSourceImageRecord = {
   id: string;
@@ -99,17 +102,41 @@ export type StudioGenerationInput = {
   seed?: number | null;
   sourceImage?: StudioSourceImageRecord | null;
   imageMode?: "avatar" | "mesh";
+  provider?: StudioWorldGenerationProvider;
 };
 
 export type StudioGenerationJobRecord = {
   id: string;
-  provider: string;
-  status: "completed";
+  provider: StudioWorldGenerationProvider;
+  status: "pending" | "in_progress" | "completed" | "failed";
   createdAt: string;
   finishedAt: string;
   summary: string;
   assetCount: number;
   mode: StudioWorldGenerationMode;
+  progress?: number;
+  providerTaskId?: string | null;
+  errorMessage?: string | null;
+};
+
+export type StudioExternalModelRecord = {
+  provider: StudioWorldGenerationProvider;
+  taskId: string;
+  status: "pending" | "in_progress" | "completed" | "failed";
+  progress: number;
+  glbUrl?: string | null;
+  thumbnailUrl?: string | null;
+  textureUrls?: Array<Record<string, string>>;
+  errorMessage?: string | null;
+  usingTestMode?: boolean;
+};
+
+export type StudioProviderAvailability = {
+  provider: StudioWorldGenerationProvider;
+  available: boolean;
+  configured: boolean;
+  usingTestMode?: boolean;
+  message?: string;
 };
 
 export type StudioProjectRecord = {
@@ -121,11 +148,13 @@ export type StudioProjectRecord = {
   focus: StudioWorldFocus;
   seed: number;
   mode: StudioWorldGenerationMode;
+  provider: StudioWorldGenerationProvider;
   createdAt: string;
   updatedAt: string;
   latestJob: StudioGenerationJobRecord;
   sourceImages: StudioSourceImageRecord[];
   sceneDraft: StudioWorldDraft;
+  externalModel?: StudioExternalModelRecord | null;
 };
 
 export type StudioProjectsStore = {
