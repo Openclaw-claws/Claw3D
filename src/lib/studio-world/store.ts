@@ -253,6 +253,7 @@ export const createStudioSourceImage = (params: {
   fileName: string;
   mimeType: string;
   buffer: Buffer;
+  role?: "front" | "side" | "back" | "detail";
 }): StudioSourceImageRecord => {
   const imageId = createImageId();
   const extension = extFromMimeType(params.mimeType);
@@ -271,6 +272,7 @@ export const createStudioSourceImage = (params: {
     dataUrl: `data:${params.mimeType};base64,${params.buffer.toString("base64")}`,
     palette,
     intensitySamples: buildImageIntensitySamples(params.buffer),
+    role: params.role,
   };
 };
 
@@ -304,7 +306,11 @@ export const createStudioProject = (input: StudioGenerationInput) => {
     createdAt,
     updatedAt: createdAt,
     latestJob,
-    sourceImages: input.sourceImage ? [input.sourceImage] : [],
+    sourceImages: Array.isArray(input.sourceImages)
+      ? input.sourceImages
+      : input.sourceImage
+        ? [input.sourceImage]
+        : [],
     sceneDraft,
     externalModel: null,
   };
@@ -356,7 +362,11 @@ export const createStudioPendingProject = (params: {
     createdAt,
     updatedAt: createdAt,
     latestJob,
-    sourceImages: params.input.sourceImage ? [params.input.sourceImage] : [],
+    sourceImages: Array.isArray(params.input.sourceImages)
+      ? params.input.sourceImages
+      : params.input.sourceImage
+        ? [params.input.sourceImage]
+        : [],
     sceneDraft: {
       ...sceneDraft,
       mode,
