@@ -112,7 +112,7 @@ const SceneContents = ({ sceneDraft }: { sceneDraft: StudioWorldDraft }) => {
 type StudioWorldPreviewProps = {
   sceneDraft: StudioWorldDraft;
   referenceImage?: StudioSourceImageRecord | null;
-  project?: Pick<StudioProjectRecord, "mode"> | null;
+  project?: Pick<StudioProjectRecord, "mode" | "provider" | "externalModel"> | null;
 };
 
 export function StudioWorldPreview({
@@ -120,6 +120,23 @@ export function StudioWorldPreview({
   referenceImage = null,
   project = null,
 }: StudioWorldPreviewProps) {
+  const isRemoteAiProject = project?.provider === "meshy";
+  const remoteReady = Boolean(project?.externalModel?.glbUrl);
+  const remoteThumbnailUrl = project?.externalModel?.thumbnailUrl ?? null;
+  const previewLabel = isRemoteAiProject
+    ? remoteReady
+      ? "Remote AI result available"
+      : "Remote AI task in progress"
+    : "Local Studio preview";
+  const previewSubLabel = isRemoteAiProject
+    ? remoteReady
+      ? "Showing local fallback scene while provider GLB and thumbnail are ready."
+      : "Showing local fallback scene until the provider finishes."
+    : project?.mode === "image_avatar"
+      ? "Image-guided avatar proxy."
+      : project?.mode === "image_mesh"
+        ? "Image-guided mesh draft."
+        : "Local world draft.";
   return (
     <div className="relative h-full min-h-[360px] w-full overflow-hidden rounded-2xl border border-border/60 bg-black/70">
       <Canvas
@@ -137,9 +154,15 @@ export function StudioWorldPreview({
             Claw3D Studio Preview
           </p>
           <p className="mt-1 text-sm text-white/90">{sceneDraft.promptSummary}</p>
+          <p className="mt-1 text-[11px] text-white/65">{previewLabel}</p>
         </div>
         <div className="rounded-full border border-white/15 bg-black/35 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-white/75">
           {sceneDraft.assets.length} assets
+        </div>
+      </div>
+      <div className="pointer-events-none absolute inset-x-0 top-16 px-4">
+        <div className="inline-flex rounded-full border border-white/10 bg-black/35 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-white/70">
+          {previewSubLabel}
         </div>
       </div>
       {referenceImage ? (
@@ -158,7 +181,31 @@ export function StudioWorldPreview({
             </div>
             <div className="mt-1 truncate text-xs text-white/85">{referenceImage.fileName}</div>
             <div className="mt-1 text-[11px] text-white/60">
-              {project?.mode === "image_avatar" ? "Image-guided avatar proxy." : "Reference image attached."}
+              {project?.mode === "image_avatar"
+                ? "Image-guided avatar proxy."
+                : project?.mode === "image_mesh"
+                  ? "Image-guided mesh draft."
+                  : "Reference image attached."}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {remoteThumbnailUrl ? (
+        <div className="pointer-events-none absolute bottom-4 right-4 w-40 overflow-hidden rounded-2xl border border-white/15 bg-black/45 shadow-2xl backdrop-blur">
+          <Image
+            src={remoteThumbnailUrl}
+            alt="Remote AI thumbnail"
+            width={160}
+            height={160}
+            className="h-28 w-full object-cover"
+            unoptimized
+          />
+          <div className="px-3 py-2">
+            <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-cyan-100/80">
+              Provider result
+            </div>
+            <div className="mt-1 text-[11px] text-white/60">
+              Remote thumbnail returned by the AI provider.
             </div>
           </div>
         </div>

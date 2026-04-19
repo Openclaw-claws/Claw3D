@@ -63,6 +63,23 @@ type StudioWorldResponse = {
   error?: string;
 };
 
+const downloadFileFromUrl = async (params: {
+  url: string;
+  filename: string;
+}) => {
+  const response = await fetch(params.url);
+  if (!response.ok) {
+    throw new Error("Failed to download provider GLB.");
+  }
+  const blob = await response.blob();
+  const objectUrl = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = objectUrl;
+  link.download = params.filename;
+  link.click();
+  URL.revokeObjectURL(objectUrl);
+};
+
 const formatTimestamp = (value: string) => {
   const parsed = Date.parse(value);
   if (!Number.isFinite(parsed)) return value;
@@ -262,6 +279,38 @@ export function StudioWorldScreen() {
     }
   };
 
+  const handleSyncProject = async (projectId: string) => {
+    setBusy(true);
+    setStatusLine("Syncing provider task status.");
+    try {
+      const response = await fetch(
+        `/api/studio-world?action=task-status&projectId=${encodeURIComponent(projectId)}`,
+        { cache: "no-store" },
+      );
+      const body = (await response.json()) as StudioWorldResponse;
+      if (!response.ok || !body.project) {
+        throw new Error(body.error || "Failed to sync provider task.");
+      }
+      setProjects((current) =>
+        current.map((entry) => (entry.id === body.project!.id ? body.project! : entry)),
+      );
+      setSelectedProjectId(body.project.id);
+      setError(null);
+      if (body.providerTask?.status === "SUCCEEDED") {
+        setStatusLine("Provider task synced. Remote GLB is ready.");
+      } else if (body.providerTask?.status === "FAILED" || body.providerTask?.status === "CANCELED") {
+        setStatusLine(body.providerTask.taskErrorMessage || "Provider task failed.");
+      } else {
+        setStatusLine(`Provider task is ${body.providerTask?.status?.toLowerCase() ?? "in progress"}.`);
+      }
+    } catch (syncError) {
+      setError(syncError instanceof Error ? syncError.message : "Failed to sync provider task.");
+      setStatusLine(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleDelete = async (projectId: string) => {
     setBusy(true);
     setStatusLine("Deleting studio draft.");
@@ -318,6 +367,29 @@ export function StudioWorldScreen() {
       setStatusLine("GLB downloaded.");
     } catch (exportError) {
       setError(exportError instanceof Error ? exportError.message : "Failed to export GLB.");
+      setStatusLine(null);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleExportProviderGlb = async (project: StudioProjectRecord) => {
+    const glbUrl = project.externalModel?.glbUrl?.trim() ?? "";
+    if (!glbUrl) {
+      setError("Provider GLB is not ready yet.");
+      return;
+    }
+    setBusy(true);
+    setStatusLine("Downloading provider GLB.");
+    try {
+      await downloadFileFromUrl({
+        url: glbUrl,
+        filename: `${project.name.trim().replace(/\s+/g, "-").toLowerCase() || "studio-provider"}.glb`,
+      });
+      setError(null);
+      setStatusLine("Provider GLB downloaded.");
+    } catch (downloadError) {
+      setError(downloadError instanceof Error ? downloadError.message : "Failed to download provider GLB.");
       setStatusLine(null);
     } finally {
       setBusy(false);
@@ -596,7 +668,11 @@ export function StudioWorldScreen() {
             <section className="ui-panel ui-depth-workspace min-h-0 overflow-hidden p-3">
               {selectedProject ? (
                 <div className="flex h-full min-h-0 flex-col gap-3">
-                  <StudioWorldPreview sceneDraft={selectedProject.sceneDraft} />
+                  <StudioWorldPreview
+                    sceneDraft={selectedProject.sceneDraft}
+                    referenceImage={selectedProject.sourceImages[0] ?? null}
+                    project={selectedProject}
+                  />
                   <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
                     <div className="ui-card max-h-52 overflow-auto p-4">
                       <div className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
@@ -616,9 +692,10 @@ export function StudioWorldScreen() {
                       </div>
                       <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                         <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Direct GLB download.</div>
+                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Provider GLB download when remote AI finishes.</div>
                         <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">GLB manifest download.</div>
                         <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Publish to Claw3D office layout.</div>
-                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Future provider seam for remote model workers.</div>
+                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Manual provider task sync for remote AI jobs.</div>
                       </div>
                     </div>
                   </div>
@@ -704,6 +781,18 @@ export function StudioWorldScreen() {
                           {project.externalModel.errorMessage ? ` ${project.externalModel.errorMessage}` : ""}
                         </div>
                       ) : null}
+                      {project.externalModel?.thumbnailUrl ? (
+                        <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-surface-1/35">
+                          <Image
+                            src={project.externalModel.thumbnailUrl}
+                            alt={`${project.name} provider thumbnail`}
+                            width={320}
+                            height={180}
+                            className="h-32 w-full object-cover"
+                            unoptimized
+                          />
+                        </div>
+                      ) : null}
                       {project.sourceImages[0] ? (
                         <div className="mt-3 flex items-center gap-3 rounded-xl border border-border/60 bg-surface-1/35 p-2">
                           <Image
@@ -723,6 +812,16 @@ export function StudioWorldScreen() {
                         </div>
                       ) : null}
                       <div className="mt-3 flex flex-wrap gap-2">
+                        {project.externalModel?.taskId ? (
+                          <button
+                            type="button"
+                            className="ui-btn-secondary px-3 py-1.5 text-xs"
+                            onClick={() => void handleSyncProject(project.id)}
+                            disabled={busy}
+                          >
+                            Sync now
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className="ui-btn-secondary px-3 py-1.5 text-xs"
@@ -731,6 +830,16 @@ export function StudioWorldScreen() {
                         >
                           Export GLB
                         </button>
+                        {project.externalModel?.glbUrl ? (
+                          <button
+                            type="button"
+                            className="ui-btn-secondary px-3 py-1.5 text-xs"
+                            onClick={() => void handleExportProviderGlb(project)}
+                            disabled={busy}
+                          >
+                            Download provider GLB
+                          </button>
+                        ) : null}
                         <button
                           type="button"
                           className="ui-btn-secondary px-3 py-1.5 text-xs"
