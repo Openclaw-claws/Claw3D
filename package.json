@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "node server/index.js --dev",
     "dev:https": "node server/index.js --dev --https",
+    "studio-ai-worker": "node server/studio-ai-worker.js",
     "hermes-adapter": "node server/hermes-gateway-adapter.js",
     "demo-gateway": "node server/demo-gateway-adapter.js",
     "build": "next build",
