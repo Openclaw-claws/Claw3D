@@ -264,7 +264,7 @@ export function StudioWorldScreen() {
       setError(null);
       setStatusLine(
         body.project.latestJob.status === "pending"
-          ? `Submitted ${body.project.name} to real AI generation.`
+          ? `Submitted ${body.project.name} to self-hosted AI generation.`
           : `Generated ${body.project.name}.`,
       );
     } catch (generationError) {
@@ -281,7 +281,7 @@ export function StudioWorldScreen() {
 
   const handleSyncProject = async (projectId: string) => {
     setBusy(true);
-    setStatusLine("Syncing provider task status.");
+    setStatusLine("Syncing self-hosted AI task status.");
     try {
       const response = await fetch(
         `/api/studio-world?action=task-status&projectId=${encodeURIComponent(projectId)}`,
@@ -289,7 +289,7 @@ export function StudioWorldScreen() {
       );
       const body = (await response.json()) as StudioWorldResponse;
       if (!response.ok || !body.project) {
-        throw new Error(body.error || "Failed to sync provider task.");
+        throw new Error(body.error || "Failed to sync self-hosted AI task.");
       }
       setProjects((current) =>
         current.map((entry) => (entry.id === body.project!.id ? body.project! : entry)),
@@ -297,14 +297,14 @@ export function StudioWorldScreen() {
       setSelectedProjectId(body.project.id);
       setError(null);
       if (body.providerTask?.status === "SUCCEEDED") {
-        setStatusLine("Provider task synced. Remote GLB is ready.");
+        setStatusLine("AI task synced. Remote GLB is ready.");
       } else if (body.providerTask?.status === "FAILED" || body.providerTask?.status === "CANCELED") {
-        setStatusLine(body.providerTask.taskErrorMessage || "Provider task failed.");
+        setStatusLine(body.providerTask.taskErrorMessage || "AI task failed.");
       } else {
-        setStatusLine(`Provider task is ${body.providerTask?.status?.toLowerCase() ?? "in progress"}.`);
+        setStatusLine(`AI task is ${body.providerTask?.status?.toLowerCase() ?? "in progress"}.`);
       }
     } catch (syncError) {
-      setError(syncError instanceof Error ? syncError.message : "Failed to sync provider task.");
+      setError(syncError instanceof Error ? syncError.message : "Failed to sync self-hosted AI task.");
       setStatusLine(null);
     } finally {
       setBusy(false);
@@ -376,20 +376,20 @@ export function StudioWorldScreen() {
   const handleExportProviderGlb = async (project: StudioProjectRecord) => {
     const glbUrl = project.externalModel?.glbUrl?.trim() ?? "";
     if (!glbUrl) {
-      setError("Provider GLB is not ready yet.");
+      setError("AI-generated GLB is not ready yet.");
       return;
     }
     setBusy(true);
-    setStatusLine("Downloading provider GLB.");
+    setStatusLine("Downloading AI-generated GLB.");
     try {
       await downloadFileFromUrl({
         url: glbUrl,
-        filename: `${project.name.trim().replace(/\s+/g, "-").toLowerCase() || "studio-provider"}.glb`,
+        filename: `${project.name.trim().replace(/\s+/g, "-").toLowerCase() || "studio-ai"}.glb`,
       });
       setError(null);
-      setStatusLine("Provider GLB downloaded.");
+      setStatusLine("AI-generated GLB downloaded.");
     } catch (downloadError) {
-      setError(downloadError instanceof Error ? downloadError.message : "Failed to download provider GLB.");
+      setError(downloadError instanceof Error ? downloadError.message : "Failed to download AI-generated GLB.");
       setStatusLine(null);
     } finally {
       setBusy(false);
@@ -457,7 +457,7 @@ export function StudioWorldScreen() {
                 <div className="font-medium text-foreground">AI provider status</div>
                 <div className="mt-1">
                   {providerAvailability?.message ??
-                    "Local generation is available. Configure a real provider to enable model-backed image-to-3D."}
+                    "Local generation is available. Configure a self-hosted AI provider to enable model-backed image-to-3D."}
                 </div>
               </div>
               <div className="mt-5 space-y-4">
@@ -580,7 +580,7 @@ export function StudioWorldScreen() {
                 </label>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="block">
-                    <span className="mb-1.5 block text-xs font-medium text-foreground">Generation provider</span>
+                    <span className="mb-1.5 block text-xs font-medium text-foreground">Generation backend</span>
                     <select
                       className="ui-input w-full"
                       value={provider}
@@ -588,10 +588,10 @@ export function StudioWorldScreen() {
                     >
                       <option value="local">Local Studio</option>
                       <option
-                        value="meshy"
+                        value="self_hosted"
                         disabled={!providerAvailability?.available}
                       >
-                        Meshy AI
+                        Self-hosted AI
                       </option>
                     </select>
                   </label>
@@ -692,10 +692,10 @@ export function StudioWorldScreen() {
                       </div>
                       <div className="mt-3 space-y-2 text-sm text-muted-foreground">
                         <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Direct GLB download.</div>
-                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Provider GLB download when remote AI finishes.</div>
+                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">AI-generated GLB download when the self-hosted job finishes.</div>
                         <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">GLB manifest download.</div>
                         <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Publish to Claw3D office layout.</div>
-                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Manual provider task sync for remote AI jobs.</div>
+                        <div className="rounded-lg border border-border/50 bg-surface-1/50 px-3 py-2">Manual task sync for self-hosted AI jobs.</div>
                       </div>
                     </div>
                   </div>
@@ -762,9 +762,7 @@ export function StudioWorldScreen() {
                               ? "image avatar"
                               : project.mode === "image_mesh"
                                 ? "image mesh"
-                                : project.mode === "ai_image_to_3d"
-                                  ? "ai image-to-3d"
-                                : "text scene"}
+                                                                : "text scene"}
                           </span>
                           <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
                             {project.provider}
@@ -776,8 +774,8 @@ export function StudioWorldScreen() {
                       </div>
                       {project.externalModel ? (
                         <div className="mt-3 rounded-xl border border-border/60 bg-surface-1/35 p-2 text-xs text-muted-foreground">
-                          Provider task {project.externalModel.status} • {project.externalModel.progress}%.
-                          {project.externalModel.glbUrl ? " GLB ready from provider." : ""}
+                          AI task {project.externalModel.status} • {project.externalModel.progress}%.
+                          {project.externalModel.glbUrl ? " GLB ready from self-hosted AI." : ""}
                           {project.externalModel.errorMessage ? ` ${project.externalModel.errorMessage}` : ""}
                         </div>
                       ) : null}
@@ -785,7 +783,7 @@ export function StudioWorldScreen() {
                         <div className="mt-3 overflow-hidden rounded-xl border border-border/60 bg-surface-1/35">
                           <Image
                             src={project.externalModel.thumbnailUrl}
-                            alt={`${project.name} provider thumbnail`}
+                            alt={`${project.name} AI thumbnail`}
                             width={320}
                             height={180}
                             className="h-32 w-full object-cover"
@@ -837,7 +835,7 @@ export function StudioWorldScreen() {
                             onClick={() => void handleExportProviderGlb(project)}
                             disabled={busy}
                           >
-                            Download provider GLB
+                            Download AI GLB
                           </button>
                         ) : null}
                         <button

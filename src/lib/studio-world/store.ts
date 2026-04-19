@@ -8,6 +8,7 @@ import {
 } from "@/lib/studio-world/generator";
 import {
   buildImagePaletteFromBuffer,
+  buildImageIntensitySamples,
   resolveImageSize,
 } from "@/lib/studio-world/image-analysis";
 import type {
@@ -96,16 +97,19 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
         seed: asNumber(entry.seed, 0),
         mode:
           entry.mode === "image_avatar" ||
-          entry.mode === "image_mesh" ||
-          entry.mode === "ai_image_to_3d"
+          entry.mode === "image_mesh"
             ? entry.mode
             : "text_scene",
-        provider: entry.provider === "meshy" ? "meshy" : "local",
+        provider:
+          entry.provider === "self_hosted" ? "self_hosted" : "local",
         createdAt,
         updatedAt,
         latestJob: {
           id: asString(entry.latestJob.id, "job"),
-          provider: entry.latestJob.provider === "meshy" ? "meshy" : "local",
+          provider:
+            entry.latestJob.provider === "self_hosted"
+              ? "self_hosted"
+              : "local",
           status:
             entry.latestJob.status === "pending" ||
             entry.latestJob.status === "in_progress" ||
@@ -118,8 +122,7 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
           assetCount: asNumber(entry.latestJob.assetCount, 0),
           mode:
             entry.latestJob.mode === "image_avatar" ||
-            entry.latestJob.mode === "image_mesh" ||
-            entry.latestJob.mode === "ai_image_to_3d"
+            entry.latestJob.mode === "image_mesh"
               ? entry.latestJob.mode
               : "text_scene",
           progress:
@@ -149,7 +152,10 @@ const normalizeStore = (value: unknown): StudioProjectsStore => {
         sceneDraft: entry.sceneDraft as StudioProjectRecord["sceneDraft"],
         externalModel: isRecord(entry.externalModel)
           ? ({
-              provider: entry.externalModel.provider === "meshy" ? "meshy" : "local",
+              provider:
+                entry.externalModel.provider === "self_hosted"
+                  ? "self_hosted"
+                  : "local",
               taskId: asString(entry.externalModel.taskId),
               status:
                 entry.externalModel.status === "pending" ||
@@ -264,6 +270,7 @@ export const createStudioSourceImage = (params: {
     storagePath,
     dataUrl: `data:${params.mimeType};base64,${params.buffer.toString("base64")}`,
     palette,
+    intensitySamples: buildImageIntensitySamples(params.buffer),
   };
 };
 
@@ -272,7 +279,8 @@ export const createStudioProject = (input: StudioGenerationInput) => {
   const createdAt = new Date().toISOString();
   const seed = resolveGenerationSeed(input);
   const sceneDraft = buildStudioWorldDraft(input);
-  const provider: StudioWorldGenerationProvider = input.provider === "meshy" ? "meshy" : "local";
+  const provider: StudioWorldGenerationProvider =
+    input.provider === "self_hosted" ? "self_hosted" : "local";
   const latestJob: StudioGenerationJobRecord = {
     id: createJobId(),
     provider,
@@ -320,15 +328,15 @@ export const createStudioPendingProject = (params: {
     sourceImage: params.input.sourceImage,
     imageMode: params.input.imageMode === "mesh" ? "mesh" : "avatar",
   });
-  const mode = "ai_image_to_3d";
-  const provider: StudioWorldGenerationProvider = "meshy";
+  const mode = "image_mesh";
+  const provider: StudioWorldGenerationProvider = "self_hosted";
   const latestJob: StudioGenerationJobRecord = {
     id: createJobId(),
     provider,
     status: "pending",
     createdAt,
     finishedAt: createdAt,
-    summary: "Submitted real AI image-to-3D task.",
+    summary: "Submitted self-hosted image-to-3D task.",
     assetCount: 0,
     mode,
     progress: 0,

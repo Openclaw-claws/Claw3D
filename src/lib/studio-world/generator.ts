@@ -430,6 +430,14 @@ const buildImageMeshDraft = (input: StudioGenerationInput): StudioWorldDraft => 
   const panelWidth = clamp(4.6 * aspectRatio, 2.6, 6.8);
   const panelHeight = clamp(5.2 / Math.max(aspectRatio, 0.65), 3.8, 7.2);
 
+  const grayscale = Array.isArray(sourceImage.intensitySamples) && sourceImage.intensitySamples.length > 0
+    ? sourceImage.intensitySamples
+    : [0.2, 0.5, 0.8, 0.4];
+  const reliefColumns = Math.max(4, Math.round(Math.sqrt(grayscale.length)));
+  const reliefRows = Math.max(4, Math.ceil(grayscale.length / reliefColumns));
+  const cellWidth = panelWidth / reliefColumns;
+  const cellHeight = panelHeight / reliefRows;
+
   const assets: StudioWorldAssetDraft[] = [
     {
       id: "mesh_base",
@@ -446,58 +454,86 @@ const buildImageMeshDraft = (input: StudioGenerationInput): StudioWorldDraft => 
       id: "mesh_panel",
       name: "Image mesh panel",
       kind: "avatar_torso",
-      position: [0, 2.7, 0],
-      scale: [panelWidth, panelHeight, 0.4],
+      position: [0, 2.8, -0.18],
+      scale: [panelWidth * 1.02, panelHeight * 1.02, 0.18],
       rotationY: 0,
       color: palette.structure,
       emissive: null,
       animation: "none",
     },
+  ];
+
+  for (let row = 0; row < reliefRows; row += 1) {
+    for (let col = 0; col < reliefColumns; col += 1) {
+      const index = row * reliefColumns + col;
+      const intensity = grayscale[index] ?? grayscale[grayscale.length - 1] ?? 0.5;
+      const centeredX = -panelWidth / 2 + cellWidth * col + cellWidth / 2;
+      const centeredY = panelHeight / 2 - cellHeight * row - cellHeight / 2;
+      const depth = 0.08 + intensity * 0.82;
+      const colorIndex = Math.min(
+        sourceImage.palette.length - 1,
+        Math.floor(intensity * Math.max(sourceImage.palette.length, 1)),
+      );
+      const color =
+        sourceImage.palette[colorIndex] ??
+        (intensity > 0.66
+          ? imageNotes.accessory
+          : intensity > 0.33
+            ? imageNotes.outfitTrim
+            : imageNotes.outfitMain);
+      assets.push({
+        id: `mesh_voxel_${row}_${col}`,
+        name: `Relief voxel ${row}-${col}`,
+        kind: "crate",
+        position: [round2(centeredX), round2(2.8 + centeredY), round2(depth * 0.42)],
+        scale: [
+          round2(cellWidth * 0.92),
+          round2(cellHeight * 0.92),
+          round2(depth),
+        ],
+        rotationY: 0,
+        color,
+        emissive: intensity > 0.84 ? imageNotes.accessory : null,
+        animation: "none",
+      });
+    }
+  }
+
+  assets.push(
     {
-      id: "mesh_head_form",
-      name: "Portrait mass",
-      kind: "avatar_head",
-      position: [0, 4.15, 0.25],
-      scale: [panelWidth * 0.42, panelHeight * 0.28, 0.44],
+      id: "mesh_frame_top",
+      name: "Mesh frame top",
+      kind: "arch",
+      position: [0, 2.8 + panelHeight / 2 + 0.45, -0.22],
+      scale: [panelWidth * 0.62, 0.42, 0.18],
       rotationY: 0,
-      color: imageNotes.skinLike,
+      color: imageNotes.accessory,
       emissive: null,
       animation: "none",
     },
     {
-      id: "mesh_hair_form",
-      name: "Hair crest",
-      kind: "avatar_hair",
-      position: [0.05, 5.15, 0.2],
-      scale: [panelWidth * 0.36, panelHeight * 0.26, 0.34],
+      id: "mesh_frame_bottom",
+      name: "Mesh frame bottom",
+      kind: "platform",
+      position: [0, 2.8 - panelHeight / 2 - 0.35, -0.22],
+      scale: [panelWidth * 1.06, 0.22, 0.28],
       rotationY: 0,
-      color: imageNotes.hairLike,
+      color: imageNotes.outfitTrim,
       emissive: null,
-      animation: input.focus === "animation" ? "pulse" : "none",
+      animation: "none",
     },
     {
-      id: "mesh_accent_strip",
-      name: "Accent strip",
-      kind: "avatar_accessory",
-      position: [0, 2.8, 0.32],
-      scale: [panelWidth * 0.52, 0.8, 0.12],
-      rotationY: 0,
-      color: imageNotes.accessory,
-      emissive: imageNotes.accessory,
-      animation: "pulse",
-    },
-    {
-      id: "mesh_companion",
-      name: "Floating detail",
+      id: "mesh_light",
+      name: "Mesh halo light",
       kind: "avatar_orb",
-      position: [panelWidth * 0.75, 4.7, -0.8],
-      scale: [0.92, 0.92, 0.92],
+      position: [panelWidth * 0.74, 2.8 + panelHeight * 0.34, -0.62],
+      scale: [0.74, 0.74, 0.74],
       rotationY: 0,
       color: imageNotes.outfitTrim,
       emissive: imageNotes.accessory,
       animation: "spin",
     },
-  ];
+  );
 
   return {
     mode: "image_mesh",

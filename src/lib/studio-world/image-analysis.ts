@@ -150,3 +150,55 @@ export const buildAvatarImageNotes = (image: StudioSourceImageRecord) => {
     backdrop: image.palette[3] ?? darken(primary, 0.5),
   };
 };
+
+export const buildImageIntensitySamples = (buffer: Buffer) => {
+  const samples: number[] = [];
+  const step = Math.max(4, Math.floor(buffer.length / 4096));
+  for (let index = 0; index + 2 < buffer.length; index += step) {
+    const red = buffer[index] ?? 0;
+    const green = buffer[index + 1] ?? 0;
+    const blue = buffer[index + 2] ?? 0;
+    const intensity = clamp(
+      Math.round(((red + green + blue) / (255 * 3)) * 1000) / 1000,
+      0,
+      1,
+    );
+    samples.push(intensity);
+  }
+  if (samples.length === 0) {
+    return [0.25, 0.5, 0.75, 0.5];
+  }
+  return samples.slice(0, 256);
+};
+
+const samplePixel = (buffer: Buffer, offset: number) => {
+  const red = buffer[offset] ?? 0;
+  const green = buffer[offset + 1] ?? red;
+  const blue = buffer[offset + 2] ?? green;
+  return { red, green, blue };
+};
+
+export const buildImageSampleGridFromBuffer = (buffer: Buffer, cells = 12) => {
+  const samples: number[][] = [];
+  const length = buffer.length;
+  if (length <= 3) {
+    return Array.from({ length: cells }, () =>
+      Array.from({ length: cells }, () => 0.5),
+    );
+  }
+  for (let row = 0; row < cells; row += 1) {
+    const rowValues: number[] = [];
+    for (let col = 0; col < cells; col += 1) {
+      const normalizedIndex = (row * cells + col) / Math.max(cells * cells - 1, 1);
+      const offset = Math.min(
+        Math.max(0, Math.floor(normalizedIndex * (length - 3))),
+        length - 3,
+      );
+      const { red, green, blue } = samplePixel(buffer, offset);
+      const luminance = (red * 0.2126 + green * 0.7152 + blue * 0.0722) / 255;
+      rowValues.push(clamp(Math.round(luminance * 1000) / 1000, 0, 1));
+    }
+    samples.push(rowValues);
+  }
+  return samples;
+};

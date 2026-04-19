@@ -248,10 +248,10 @@ describe("studio world route", () => {
     ).toBe(true);
   });
 
-  it("submits a real AI image-to-3D task when Meshy is configured", async () => {
-    tempDir = makeTempDir("studio-world-meshy-route");
+  it("submits a real AI image-to-3D task when a self-hosted provider is configured", async () => {
+    tempDir = makeTempDir("studio-world-self-hosted-route");
     process.env.OPENCLAW_STATE_DIR = tempDir;
-    process.env.MESHY_API_KEY = "msy_dummy_api_key_for_test_mode_12345678";
+    process.env.CLAW3D_STUDIO_PROVIDER_URL = "http://provider.test/openapi/v1";
     process.env.CLAW3D_STUDIO_ENABLE_REAL_AI = "true";
 
     const pngBytes = Uint8Array.from([
@@ -303,7 +303,8 @@ describe("studio world route", () => {
             style: "realistic",
             scale: "medium",
             focus: "assets",
-            provider: "meshy",
+            provider: "self_hosted",
+            imageMode: "mesh",
             sourceImage: uploadBody.sourceImage,
           },
         }),
@@ -320,13 +321,13 @@ describe("studio world route", () => {
     };
 
     expect(response.status).toBe(200);
-    expect(body.project?.provider).toBe("meshy");
-    expect(body.project?.mode).toBe("ai_image_to_3d");
+    expect(body.project?.provider).toBe("self_hosted");
+    expect(body.project?.mode).toBe("image_mesh");
     expect(body.project?.latestJob?.status).toBe("pending");
     expect(body.project?.latestJob?.providerTaskId).toBe("task_test_123");
     expect(body.project?.externalModel?.taskId).toBe("task_test_123");
     expect(body.project?.externalModel?.status).toBe("pending");
-    expect(body.providerAvailability?.provider).toBe("meshy");
+    expect(body.providerAvailability?.provider).toBe("self_hosted");
     expect(body.providerAvailability?.available).toBe(true);
   });
 });

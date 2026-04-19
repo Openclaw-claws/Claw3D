@@ -12,8 +12,8 @@ import {
 import { buildOfficeMapFromStudioProject } from "@/lib/studio-world/office";
 import {
   buildRealAiSummary,
-  createMeshyImageTo3dTask,
-  getMeshyImageTo3dTask,
+  createSelfHostedImageTo3dTask,
+  getSelfHostedImageTo3dTask,
   isRealStudioAiEnabled,
   resolveStudioAiProvider,
 } from "@/lib/studio-world/provider";
@@ -59,7 +59,7 @@ const parseFocus = (value: unknown): StudioWorldFocus =>
   value === "assets" || value === "animation" ? value : "world";
 
 const parseProvider = (value: unknown): StudioWorldGenerationProvider =>
-  value === "meshy" ? "meshy" : "local";
+  value === "self_hosted" ? "self_hosted" : "local";
 
 const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
   if (!isRecord(value)) return null;
@@ -109,7 +109,7 @@ const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
 
 const buildProviderAvailability = (): StudioProviderAvailability => {
   const provider = resolveStudioAiProvider();
-  if (provider === "meshy") {
+  if (provider === "self_hosted") {
     const enabled = isRealStudioAiEnabled();
     return {
       provider,
@@ -117,7 +117,7 @@ const buildProviderAvailability = (): StudioProviderAvailability => {
       configured: true,
       message: enabled
         ? "Real AI image-to-3D is enabled."
-        : "Meshy is configured but disabled until CLAW3D_STUDIO_ENABLE_REAL_AI is enabled.",
+        : "Self-hosted AI is configured but disabled until CLAW3D_STUDIO_ENABLE_REAL_AI is enabled.",
     };
   }
   return {
@@ -235,15 +235,15 @@ export async function GET(request: Request) {
           { status: 400 },
         );
       }
-      if (project.externalModel.provider !== "meshy") {
+      if (project.externalModel.provider !== "self_hosted") {
         return NextResponse.json(
           { error: "Unsupported provider for task status." },
           { status: 400 },
         );
       }
-      const task = await getMeshyImageTo3dTask(project.externalModel.taskId);
+      const task = await getSelfHostedImageTo3dTask(project.externalModel.taskId);
       const updatedProject = updateStudioProjectExternalModel(projectId, {
-        provider: "meshy",
+        provider: "self_hosted",
         taskId: task.id,
         status:
           task.status === "PENDING"
@@ -368,19 +368,19 @@ export async function POST(request: Request) {
         );
       }
       if (
-        input.provider === "meshy" &&
+        input.provider === "self_hosted" &&
         input.sourceImage &&
         isRealStudioAiEnabled()
       ) {
-        const taskId = await createMeshyImageTo3dTask({
+        const taskId = await createSelfHostedImageTo3dTask({
           sourceImage: input.sourceImage,
           prompt: input.prompt,
-          mode: "ai_image_to_3d",
+          mode: "image_mesh",
         });
         const project = createStudioPendingProject({
           input: {
             ...input,
-            provider: "meshy",
+            provider: "self_hosted",
           },
           providerTaskId: taskId,
         });

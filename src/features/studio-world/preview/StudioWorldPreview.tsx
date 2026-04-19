@@ -120,7 +120,7 @@ export function StudioWorldPreview({
   referenceImage = null,
   project = null,
 }: StudioWorldPreviewProps) {
-  const isRemoteAiProject = project?.provider === "meshy";
+  const isRemoteAiProject = project?.provider === "self_hosted";
   const remoteReady = Boolean(project?.externalModel?.glbUrl);
   const remoteThumbnailUrl = project?.externalModel?.thumbnailUrl ?? null;
   const previewLabel = isRemoteAiProject

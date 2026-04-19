@@ -27,6 +27,8 @@ export type StudioWorldAssetKind =
   | "beacon"
   | "crate"
   | "portal"
+  | "heightfield_panel"
+  | "billboard_frame"
   | "avatar_head"
   | "avatar_hair"
   | "avatar_torso"
@@ -37,10 +39,9 @@ export type StudioWorldAssetKind =
 export type StudioWorldGenerationMode =
   | "text_scene"
   | "image_avatar"
-  | "image_mesh"
-  | "ai_image_to_3d";
+  | "image_mesh";
 
-export type StudioWorldGenerationProvider = "local" | "meshy";
+export type StudioWorldGenerationProvider = "local" | "self_hosted";
 
 export type StudioSourceImageRecord = {
   id: string;
@@ -52,6 +53,7 @@ export type StudioSourceImageRecord = {
   storagePath: string;
   dataUrl: string;
   palette: string[];
+  intensitySamples?: number[];
 };
 
 export type StudioWorldAssetDraft = {

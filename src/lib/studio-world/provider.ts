@@ -5,7 +5,7 @@ import type {
   StudioWorldGenerationMode,
 } from "@/lib/studio-world/types";
 
-export type StudioAiProviderKind = "none" | "meshy";
+export type StudioAiProviderKind = "none" | "self_hosted";
 
 export type StudioAiTaskStatus =
   | "PENDING"
@@ -27,11 +27,11 @@ export type StudioAiTaskRecord = {
   updatedAt: string;
 };
 
-type MeshyCreateResponse = {
+type SelfHostedCreateResponse = {
   result?: string;
 };
 
-type MeshyTaskResponse = {
+type SelfHostedTaskResponse = {
   id?: string;
   status?: string;
   progress?: number;
@@ -44,7 +44,7 @@ type MeshyTaskResponse = {
   };
 };
 
-const MESHY_API_BASE_URL = "https://api.meshy.ai/openapi/v1";
+const SELF_HOSTED_API_BASE_URL = "http://127.0.0.1:3333/openapi/v1";
 
 const isEnabled = (value: string | undefined) => {
   const normalized = (value ?? "").trim().toLowerCase();
@@ -52,8 +52,8 @@ const isEnabled = (value: string | undefined) => {
 };
 
 export const resolveStudioAiProvider = (): StudioAiProviderKind => {
-  if (process.env.MESHY_API_KEY?.trim()) {
-    return "meshy";
+  if (process.env.CLAW3D_STUDIO_PROVIDER_URL?.trim()) {
+    return "self_hosted";
   }
   return "none";
 };
@@ -64,17 +64,17 @@ export const isRealStudioAiEnabled = () =>
 
 export const buildStudioAiProviderAvailability = (): StudioProviderAvailability => {
   const provider = resolveStudioAiProvider();
-  if (provider === "meshy") {
+  if (provider === "self_hosted") {
     const enabled = isRealStudioAiEnabled();
-    const apiKey = process.env.MESHY_API_KEY?.trim() ?? "";
+    const providerUrl = process.env.CLAW3D_STUDIO_PROVIDER_URL?.trim() ?? "";
     return {
-      provider: "meshy",
+      provider: "self_hosted",
       available: enabled,
-      configured: Boolean(apiKey),
-      usingTestMode: apiKey === "msy_dummy_api_key_for_test_mode_12345678",
+      configured: Boolean(providerUrl),
+      usingTestMode: false,
       message: enabled
-        ? "Real AI image-to-3D is enabled."
-        : "Meshy is configured but disabled until CLAW3D_STUDIO_ENABLE_REAL_AI is enabled.",
+        ? "Self-hosted AI image-to-3D is enabled."
+        : "A self-hosted provider is configured but disabled until CLAW3D_STUDIO_ENABLE_REAL_AI is enabled.",
     };
   }
   return {
@@ -82,16 +82,17 @@ export const buildStudioAiProviderAvailability = (): StudioProviderAvailability 
     available: false,
     configured: false,
     usingTestMode: false,
-    message: "No real AI provider is configured. Studio will use local generators.",
+    message: "No self-hosted AI provider is configured. Studio will use local generators.",
   };
 };
 
-const assertMeshyConfigured = () => {
-  const apiKey = process.env.MESHY_API_KEY?.trim();
-  if (!apiKey) {
-    throw new Error("MESHY_API_KEY is not configured.");
+const resolveSelfHostedProviderConfig = () => {
+  const baseUrl = process.env.CLAW3D_STUDIO_PROVIDER_URL?.trim() || SELF_HOSTED_API_BASE_URL;
+  const apiKey = process.env.CLAW3D_STUDIO_PROVIDER_API_KEY?.trim() ?? "";
+  if (!baseUrl) {
+    throw new Error("CLAW3D_STUDIO_PROVIDER_URL is not configured.");
   }
-  return apiKey;
+  return { baseUrl, apiKey };
 };
 
 const mapStatus = (status: string | undefined): StudioAiTaskStatus => {
@@ -109,66 +110,74 @@ const mapStatus = (status: string | undefined): StudioAiTaskStatus => {
 
 const buildDataUri = (image: StudioSourceImageRecord) => image.dataUrl;
 
-export const createMeshyImageTo3dTask = async (params: {
+export const createSelfHostedImageTo3dTask = async (params: {
   sourceImage: StudioSourceImageRecord;
   prompt: string;
   mode: StudioWorldGenerationMode;
 }) => {
-  const apiKey = assertMeshyConfigured();
-  const response = await fetch(`${MESHY_API_BASE_URL}/image-to-3d`, {
+  const { baseUrl, apiKey } = resolveSelfHostedProviderConfig();
+  const payload = {
+    image_url: buildDataUri(params.sourceImage),
+    model_type: params.mode === "image_mesh" ? "standard" : "lowpoly",
+    ai_model: "latest",
+    should_texture: true,
+    enable_pbr: false,
+    remove_lighting: true,
+    image_enhancement: true,
+    target_formats: ["glb"],
+    should_remesh: params.mode === "image_mesh",
+    ...(params.mode === "image_mesh"
+      ? {
+          topology: "triangle",
+          target_polycount: 30000,
+        }
+      : {}),
+    ...(params.prompt.trim()
+      ? {
+          texture_prompt: params.prompt.trim().slice(0, 600),
+        }
+      : {}),
+  };
+  const response = await fetch(`${baseUrl}/image-to-3d`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({
-      image_url: buildDataUri(params.sourceImage),
-      model_type: params.mode === "image_mesh" ? "standard" : "lowpoly",
-      ai_model: "latest",
-      should_texture: true,
-      enable_pbr: false,
-      remove_lighting: true,
-      image_enhancement: true,
-      target_formats: ["glb"],
-      should_remesh: params.mode === "image_mesh",
-      ...(params.mode === "image_mesh"
-        ? {
-            topology: "triangle",
-            target_polycount: 30000,
-          }
-        : {}),
-      ...(params.prompt.trim()
-        ? {
-            texture_prompt: params.prompt.trim().slice(0, 600),
-          }
-        : {}),
-    }),
+    body: JSON.stringify(payload),
   });
-  const body = (await response.json()) as MeshyCreateResponse;
+  const rawBody = await response.text();
+  let body: SelfHostedCreateResponse = {};
+  try {
+    body = JSON.parse(rawBody) as SelfHostedCreateResponse;
+  } catch {
+    body = {};
+  }
   if (!response.ok || !body.result) {
-    throw new Error("Failed to create Meshy image-to-3D task.");
+    const diagnostic = rawBody.trim() || `${response.status} ${response.statusText}`;
+    throw new Error(`Failed to create self-hosted image-to-3D task. ${diagnostic}`);
   }
   return body.result;
 };
 
-export const getMeshyImageTo3dTask = async (
+export const getSelfHostedImageTo3dTask = async (
   taskId: string,
 ): Promise<StudioAiTaskRecord> => {
-  const apiKey = assertMeshyConfigured();
-  const response = await fetch(`${MESHY_API_BASE_URL}/image-to-3d/${encodeURIComponent(taskId)}`, {
+  const { baseUrl, apiKey } = resolveSelfHostedProviderConfig();
+  const response = await fetch(`${baseUrl}/image-to-3d/${encodeURIComponent(taskId)}`, {
     headers: {
-      Authorization: `Bearer ${apiKey}`,
+      ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
     },
     cache: "no-store",
   });
-  const body = (await response.json()) as MeshyTaskResponse;
+  const body = (await response.json()) as SelfHostedTaskResponse;
   if (!response.ok || !body.id) {
-    throw new Error("Failed to fetch Meshy task.");
+    throw new Error("Failed to fetch self-hosted provider task.");
   }
   const now = new Date().toISOString();
   return {
     id: body.id,
-    provider: "meshy",
+    provider: "self_hosted",
     mode: body.model_urls?.glb ? "image_mesh" : "image_avatar",
     status: mapStatus(body.status),
     progress:
@@ -183,7 +192,7 @@ export const getMeshyImageTo3dTask = async (
   };
 };
 
-export const waitForMeshyImageTo3dTask = async (params: {
+export const waitForSelfHostedImageTo3dTask = async (params: {
   taskId: string;
   timeoutMs?: number;
   pollIntervalMs?: number;
@@ -191,7 +200,7 @@ export const waitForMeshyImageTo3dTask = async (params: {
   const timeoutAt = Date.now() + (params.timeoutMs ?? 10 * 60_000);
   const pollIntervalMs = params.pollIntervalMs ?? 5000;
   while (Date.now() < timeoutAt) {
-    const task = await getMeshyImageTo3dTask(params.taskId);
+    const task = await getSelfHostedImageTo3dTask(params.taskId);
     if (
       task.status === "SUCCEEDED" ||
       task.status === "FAILED" ||
@@ -201,7 +210,7 @@ export const waitForMeshyImageTo3dTask = async (params: {
     }
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   }
-  throw new Error("Timed out waiting for Meshy image-to-3D task.");
+  throw new Error("Timed out waiting for self-hosted image-to-3D task.");
 };
 
 export const buildRealAiSummary = (params: {

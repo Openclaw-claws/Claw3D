@@ -59,6 +59,12 @@ export const buildAssetGeometry = (kind: StudioWorldAssetDraft["kind"]) => {
   if (kind === "avatar_orb") {
     return new THREE.OctahedronGeometry(0.82, 0);
   }
+  if (kind === "heightfield_panel") {
+    return new THREE.BoxGeometry(1, 1, 0.12);
+  }
+  if (kind === "billboard_frame") {
+    return new THREE.BoxGeometry(1, 1, 1);
+  }
   return new THREE.BoxGeometry(1, 1, 1);
 };
 
@@ -141,6 +147,18 @@ const createAssetMesh = (asset: StudioWorldAssetDraft) => {
     group.add(core, halo);
     group.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
     return group;
+  }
+
+  if (asset.kind === "heightfield_panel") {
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return mesh;
+  }
+
+  if (asset.kind === "billboard_frame") {
+    const mesh = new THREE.Mesh(buildAssetGeometry(asset.kind), material);
+    mesh.scale.set(asset.scale[0], asset.scale[1], asset.scale[2]);
+    return mesh;
   }
 
   if (asset.kind === "arch") {
