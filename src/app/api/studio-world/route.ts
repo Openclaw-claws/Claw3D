@@ -88,6 +88,7 @@ const parseGenerationInput = (value: unknown): StudioGenerationInput | null => {
     focus: parseFocus(value.focus),
     seed,
     sourceImage,
+    imageMode: value.imageMode === "mesh" ? "mesh" : "avatar",
   };
 };
 

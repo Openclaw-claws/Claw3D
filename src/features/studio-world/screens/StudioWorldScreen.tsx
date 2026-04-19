@@ -90,6 +90,7 @@ export function StudioWorldScreen() {
   const [seed, setSeed] = useState("");
   const [uploadedImage, setUploadedImage] = useState<StudioSourceImageRecord | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [imageMode, setImageMode] = useState<"avatar" | "mesh">("avatar");
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
   const selectedProject = useMemo(
@@ -175,6 +176,7 @@ export function StudioWorldScreen() {
             focus,
             seed: Number.isFinite(parsedSeed) ? parsedSeed : null,
             sourceImage: uploadedImage,
+            imageMode,
           },
         }),
       });
@@ -379,6 +381,43 @@ export function StudioWorldScreen() {
                       </div>
                     </div>
                   ) : null}
+                  {uploadedImage ? (
+                    <div className="mt-3">
+                      <div className="mb-1.5 block text-xs font-medium text-foreground">Image generation mode</div>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        <button
+                          type="button"
+                          className={`rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
+                            imageMode === "avatar"
+                              ? "border-primary/60 bg-primary/10 text-foreground"
+                              : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
+                          }`}
+                          onClick={() => setImageMode("avatar")}
+                          disabled={busy || uploadingImage}
+                        >
+                          <div className="font-medium">Avatar proxy</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Builds a stylized 3D character proxy guided by the reference image.
+                          </div>
+                        </button>
+                        <button
+                          type="button"
+                          className={`rounded-xl border px-3 py-2 text-left text-sm transition-colors ${
+                            imageMode === "mesh"
+                              ? "border-primary/60 bg-primary/10 text-foreground"
+                              : "border-border/60 bg-background text-muted-foreground hover:text-foreground"
+                          }`}
+                          onClick={() => setImageMode("mesh")}
+                          disabled={busy || uploadingImage}
+                        >
+                          <div className="font-medium">Image mesh draft</div>
+                          <div className="mt-1 text-xs text-muted-foreground">
+                            Builds a relief-style mesh draft from the uploaded portrait silhouette and palette.
+                          </div>
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
                 <label className="block">
                   <span className="mb-1.5 block text-xs font-medium text-foreground">Project name</span>
@@ -557,7 +596,11 @@ export function StudioWorldScreen() {
                             {project.scale}
                           </span>
                           <span className="rounded-full bg-muted px-2 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-                            {project.mode === "image_avatar" ? "image avatar" : "text scene"}
+                            {project.mode === "image_avatar"
+                              ? "image avatar"
+                              : project.mode === "image_mesh"
+                                ? "image mesh"
+                                : "text scene"}
                           </span>
                         </div>
                       </button>

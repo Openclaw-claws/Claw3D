@@ -34,7 +34,10 @@ export type StudioWorldAssetKind =
   | "avatar_accessory"
   | "avatar_orb";
 
-export type StudioWorldGenerationMode = "text_scene" | "image_avatar";
+export type StudioWorldGenerationMode =
+  | "text_scene"
+  | "image_avatar"
+  | "image_mesh";
 
 export type StudioSourceImageRecord = {
   id: string;
@@ -95,6 +98,7 @@ export type StudioGenerationInput = {
   focus: StudioWorldFocus;
   seed?: number | null;
   sourceImage?: StudioSourceImageRecord | null;
+  imageMode?: "avatar" | "mesh";
 };
 
 export type StudioGenerationJobRecord = {

@@ -174,4 +174,70 @@ describe("studio world route", () => {
       ),
     ).toBe(true);
   });
+
+  it("creates an image-guided mesh project", async () => {
+    tempDir = makeTempDir("studio-world-image-mesh-route");
+    process.env.OPENCLAW_STATE_DIR = tempDir;
+
+    const pngBytes = Uint8Array.from([
+      137, 80, 78, 71, 13, 10, 26, 10,
+      0, 0, 0, 13, 73, 72, 68, 82,
+      0, 0, 0, 1, 0, 0, 0, 1,
+      8, 6, 0, 0, 0, 31, 21, 196, 137,
+      0, 0, 0, 1, 73, 68, 65, 84,
+      120, 156, 99, 0, 0, 0, 2, 0, 1,
+      229, 39, 212, 162, 0, 0, 0, 0,
+      73, 69, 78, 68, 174, 66, 96, 130,
+    ]);
+
+    const formData = new FormData();
+    formData.append(
+      "image",
+      new File([pngBytes], "mesh.png", { type: "image/png" }),
+    );
+
+    const uploadResponse = await POST(
+      new Request("http://localhost/api/studio-world", {
+        method: "POST",
+        body: formData,
+      }),
+    );
+    const uploadBody = (await uploadResponse.json()) as {
+      sourceImage?: Record<string, unknown>;
+    };
+
+    expect(uploadResponse.status).toBe(200);
+
+    const meshProjectResponse = await POST({
+      text: async () =>
+        JSON.stringify({
+          action: "generate",
+          input: {
+            name: "Mesh Test",
+            prompt: "Portrait relief mesh from uploaded image.",
+            style: "stylized",
+            scale: "medium",
+            focus: "assets",
+            imageMode: "mesh",
+            sourceImage: uploadBody.sourceImage,
+          },
+        }),
+    } as unknown as Request);
+
+    const meshProjectBody = (await meshProjectResponse.json()) as {
+      project?: {
+        mode?: string;
+        sceneDraft?: { mode?: string; assets?: Array<{ id?: string }> };
+      };
+    };
+
+    expect(meshProjectResponse.status).toBe(200);
+    expect(meshProjectBody.project?.mode).toBe("image_mesh");
+    expect(meshProjectBody.project?.sceneDraft?.mode).toBe("image_mesh");
+    expect(
+      meshProjectBody.project?.sceneDraft?.assets?.some(
+        (asset) => asset.id === "mesh_panel",
+      ),
+    ).toBe(true);
+  });
 });

@@ -402,8 +402,127 @@ const buildAvatarDraft = (input: StudioGenerationInput): StudioWorldDraft => {
   };
 };
 
+const buildImageMeshDraft = (input: StudioGenerationInput): StudioWorldDraft => {
+  const sourceImage = input.sourceImage;
+  if (!sourceImage) {
+    throw new Error("Image-guided mesh generation requires a source image.");
+  }
+  const seed = resolveGenerationSeed(input);
+  const bounds = avatarScaleToBounds(input.scale);
+  const imageNotes = buildAvatarImageNotes(sourceImage);
+  const palette: StudioWorldPalette = {
+    ground: imageNotes.backdrop,
+    structure: imageNotes.outfitMain,
+    prop: imageNotes.outfitTrim,
+    accent: imageNotes.accessory,
+    glow: imageNotes.accessory,
+    fog: imageNotes.outfitTrim,
+    sky: imageNotes.backdrop,
+  };
+
+  const notes = [
+    `Image-guided mesh draft built from ${sourceImage.fileName}.`,
+    "Current mode creates a textured relief mesh from the uploaded image silhouette and palette.",
+    `Generated with ${input.style} styling and seed ${seed}.`,
+  ];
+
+  const aspectRatio = sourceImage.height > 0 ? sourceImage.width / sourceImage.height : 1;
+  const panelWidth = clamp(4.6 * aspectRatio, 2.6, 6.8);
+  const panelHeight = clamp(5.2 / Math.max(aspectRatio, 0.65), 3.8, 7.2);
+
+  const assets: StudioWorldAssetDraft[] = [
+    {
+      id: "mesh_base",
+      name: "Mesh base",
+      kind: "platform",
+      position: [0, -0.25, 0],
+      scale: [7.6, 0.45, 7.6],
+      rotationY: 0,
+      color: palette.ground,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "mesh_panel",
+      name: "Image mesh panel",
+      kind: "avatar_torso",
+      position: [0, 2.7, 0],
+      scale: [panelWidth, panelHeight, 0.4],
+      rotationY: 0,
+      color: palette.structure,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "mesh_head_form",
+      name: "Portrait mass",
+      kind: "avatar_head",
+      position: [0, 4.15, 0.25],
+      scale: [panelWidth * 0.42, panelHeight * 0.28, 0.44],
+      rotationY: 0,
+      color: imageNotes.skinLike,
+      emissive: null,
+      animation: "none",
+    },
+    {
+      id: "mesh_hair_form",
+      name: "Hair crest",
+      kind: "avatar_hair",
+      position: [0.05, 5.15, 0.2],
+      scale: [panelWidth * 0.36, panelHeight * 0.26, 0.34],
+      rotationY: 0,
+      color: imageNotes.hairLike,
+      emissive: null,
+      animation: input.focus === "animation" ? "pulse" : "none",
+    },
+    {
+      id: "mesh_accent_strip",
+      name: "Accent strip",
+      kind: "avatar_accessory",
+      position: [0, 2.8, 0.32],
+      scale: [panelWidth * 0.52, 0.8, 0.12],
+      rotationY: 0,
+      color: imageNotes.accessory,
+      emissive: imageNotes.accessory,
+      animation: "pulse",
+    },
+    {
+      id: "mesh_companion",
+      name: "Floating detail",
+      kind: "avatar_orb",
+      position: [panelWidth * 0.75, 4.7, -0.8],
+      scale: [0.92, 0.92, 0.92],
+      rotationY: 0,
+      color: imageNotes.outfitTrim,
+      emissive: imageNotes.accessory,
+      animation: "spin",
+    },
+  ];
+
+  return {
+    mode: "image_mesh",
+    biome: "creative_plaza",
+    palette,
+    worldBounds: {
+      width: bounds.width,
+      depth: bounds.depth,
+    },
+    camera: {
+      position: [8.2, 6.2, 10.4],
+      target: [0, 3.2, 0],
+    },
+    promptSummary:
+      input.prompt.trim() || `Image-guided mesh from ${sourceImage.fileName}`,
+    notes,
+    assets,
+  };
+};
+
 export const buildStudioWorldDraft = (input: StudioGenerationInput): StudioWorldDraft => {
   if (input.sourceImage) {
+    if (input.imageMode === "mesh") {
+      return buildImageMeshDraft(input);
+    }
     return buildAvatarDraft(input);
   }
   const seed = resolveGenerationSeed(input);
