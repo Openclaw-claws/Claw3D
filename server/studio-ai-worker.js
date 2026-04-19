@@ -3,6 +3,7 @@ const http = require("node:http");
 const os = require("node:os");
 const path = require("node:path");
 const { randomUUID } = require("node:crypto");
+const THREE = require("three");
 
 const DEFAULT_PORT = Number.parseInt(process.env.CLAW3D_STUDIO_PROVIDER_PORT || "3333", 10);
 const DEFAULT_HOST = process.env.CLAW3D_STUDIO_PROVIDER_HOST || "127.0.0.1";
@@ -212,6 +213,31 @@ const samplePalette = (buffer) => {
   return colors;
 };
 
+class NodeFileReader {
+  constructor() {
+    this.result = null;
+    this.onloadend = null;
+  }
+
+  readAsArrayBuffer(blob) {
+    blob
+      .arrayBuffer()
+      .then((buffer) => {
+        this.result = buffer;
+        if (typeof this.onloadend === "function") {
+          this.onloadend();
+        }
+      })
+      .catch((error) => {
+        throw error;
+      });
+  }
+}
+
+if (typeof globalThis.FileReader === "undefined") {
+  globalThis.FileReader = NodeFileReader;
+}
+
 const decodeImageUrl = async (imageUrl) => {
   const trimmed = typeof imageUrl === "string" ? imageUrl.trim() : "";
   if (!trimmed) {
@@ -238,31 +264,93 @@ const decodeImageUrl = async (imageUrl) => {
 };
 
 const createHeightfieldScene = async (params) => {
-  const {
-    colorGrid,
-    intensityGrid,
-    palette,
-    width,
-    height,
-  } = params;
+  const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
+  const { colorGrid, intensityGrid, palette, width, height } = params;
   const rows = intensityGrid.length;
   const cols = intensityGrid[0]?.length ?? 0;
 
+  const scene = new THREE.Scene();
   const panelWidth = clamp((width / Math.max(height, 1)) * 5.8, 2.8, 7.2);
   const panelHeight = clamp((height / Math.max(width, 1)) * 7.2, 4.2, 8.4);
-  const summary = {
-    generator: "self-hosted-heightfield-relief",
-    dimensions: { width, height },
-    panel: { width: panelWidth, height: panelHeight },
-    rows,
-    cols,
-    palette,
-    intensityPreview: intensityGrid.slice(0, 4).map((row) => row.slice(0, 4)),
-    colorPreview: colorGrid.slice(0, 2).map((row) => row.slice(0, 2)),
-    note:
-      "Placeholder binary artifact emitted by the self-hosted worker scaffold. Replace this with a real mesh serializer/model backend.",
-  };
-  return Buffer.from(JSON.stringify(summary, null, 2), "utf8");
+
+  const root = new THREE.Group();
+  root.name = "self_hosted_heightfield_relief";
+
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(panelWidth * 1.08, panelHeight * 1.08, 0.18),
+    new THREE.MeshStandardMaterial({ color: palette[1] || "#666", roughness: 0.8 }),
+  );
+  frame.position.set(0, panelHeight * 0.5, -0.12);
+  root.add(frame);
+
+  const plane = new THREE.PlaneGeometry(panelWidth, panelHeight, cols - 1, rows - 1);
+  const positions = plane.attributes.position;
+  const colors = new Float32Array(rows * cols * 3);
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const index = row * cols + col;
+      const intensity = intensityGrid[row]?.[col] ?? 0.5;
+      positions.setZ(index, intensity * 0.9);
+      const rgb = colorGrid[row]?.[col] ?? [127, 127, 127];
+      colors[index * 3] = (rgb[0] ?? 127) / 255;
+      colors[index * 3 + 1] = (rgb[1] ?? 127) / 255;
+      colors[index * 3 + 2] = (rgb[2] ?? 127) / 255;
+    }
+  }
+  plane.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  positions.needsUpdate = true;
+  plane.computeVertexNormals();
+
+  const relief = new THREE.Mesh(
+    plane,
+    new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      roughness: 0.82,
+      metalness: 0.03,
+    }),
+  );
+  relief.position.set(0, panelHeight * 0.5, 0.02);
+  root.add(relief);
+
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(panelWidth * 1.14, 0.22, panelHeight * 1.14),
+    new THREE.MeshStandardMaterial({ color: palette[3] || "#222", roughness: 0.9 }),
+  );
+  base.position.set(0, -0.35, 0);
+  root.add(base);
+
+  const accent = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.62, 0),
+    new THREE.MeshStandardMaterial({
+      color: palette[2] || palette[0] || "#fff",
+      emissive: palette[2] || "#000",
+      emissiveIntensity: 0.65,
+      roughness: 0.16,
+      metalness: 0.22,
+    }),
+  );
+  accent.position.set(panelWidth * 0.42, panelHeight * 0.82, -0.8);
+  root.add(accent);
+
+  scene.add(root);
+
+  const exporter = new GLTFExporter();
+  const glb = await new Promise((resolve, reject) => {
+    exporter.parse(
+      scene,
+      (result) => {
+        if (result instanceof ArrayBuffer) {
+          resolve(Buffer.from(result));
+          return;
+        }
+        reject(new Error("Expected binary GLB output."));
+      },
+      (error) => reject(error instanceof Error ? error : new Error(String(error))),
+      { binary: true, onlyVisible: true, trs: false },
+    );
+  });
+  return glb;
 };
 
 const createHeightfieldAdapter = () => ({
