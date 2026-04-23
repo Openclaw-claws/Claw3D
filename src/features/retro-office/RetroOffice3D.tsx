@@ -26,6 +26,7 @@ import {
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Environment, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
+import { useCanvasContextLoss } from "@/features/retro-office/useCanvasContextLoss";
 import { SettingsPanel } from "@/features/office/components/panels/SettingsPanel";
 import { AtmImmersiveScreen } from "@/features/office/screens/AtmImmersiveScreen";
 import { GithubImmersiveScreen } from "@/features/office/screens/GithubImmersiveScreen";
@@ -3042,6 +3043,10 @@ export function RetroOffice3D({
       ) ?? null
     );
   }, [assignedDeskIndexByAgentId, deskLocations, furniture, monitorAgentId]);
+  const { canvasKey: retroCanvasKey, onCreated: onRetroCanvasCreated } = useCanvasContextLoss({
+    pollIntervalMs: 500,
+    maxRestoreAttempts: 8,
+  });
   const agentRosterVisible = agentRosterOpen && !immersiveOverlayActive;
   const selectedItem = useMemo(
     () => furniture.find((item) => item._uid === selectedUid) ?? null,
@@ -5002,6 +5007,7 @@ export function RetroOffice3D({
         */}
         {!immersiveOverlayActive ? (
           <Canvas
+            key={retroCanvasKey}
             orthographic
             dpr={[0.85, 1.5]}
             camera={{
@@ -5011,7 +5017,13 @@ export function RetroOffice3D({
               far: 100,
             }}
             shadows={{ type: THREE.PCFShadowMap }}
-            gl={{ antialias: true, powerPreference: "high-performance" }}
+            gl={{
+              antialias: true,
+              powerPreference: "high-performance",
+              failIfMajorPerformanceCaveat: false,
+              preserveDrawingBuffer: false,
+            }}
+            onCreated={onRetroCanvasCreated}
             style={{ width: "100%", height: "100%" }}
             onPointerUp={() => {
               if (drag.kind === "moving") setDrag({ kind: "idle" });

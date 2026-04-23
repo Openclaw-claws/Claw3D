@@ -9,6 +9,7 @@ import {
   createDefaultAgentAvatarProfile,
 } from "@/lib/avatars/profile";
 import { RunningAvatarLoader } from "@/features/agents/components/RunningAvatarLoader";
+import { useCanvasContextLoss } from "@/features/retro-office/useCanvasContextLoss";
 
 const PreviewFigure = ({
   profile,
@@ -307,6 +308,7 @@ export const AgentAvatarPreview3D = ({
     [profile]
   );
   const profileKey = useMemo(() => JSON.stringify(resolvedProfile), [resolvedProfile]);
+  const { canvasKey: avatarCanvasKey, onCreated: onAvatarCanvasCreated } = useCanvasContextLoss({ pollIntervalMs: 500, maxRestoreAttempts: 6 });
   const [readyProfileKey, setReadyProfileKey] = useState<string | null>(null);
   const isReady = readyProfileKey === profileKey;
 
@@ -317,7 +319,12 @@ export const AgentAvatarPreview3D = ({
           <RunningAvatarLoader size={26} trackWidth={72} label="Loading avatar..." />
         </div>
       ) : null}
-      <Canvas key={profileKey} camera={{ position: [0, 0.7, 2.5], fov: 34 }}>
+      <Canvas
+        key={`${profileKey}:${avatarCanvasKey}`}
+        camera={{ position: [0, 0.7, 2.5], fov: 34 }}
+        gl={{ antialias: true, failIfMajorPerformanceCaveat: false, powerPreference: "high-performance" }}
+        onCreated={onAvatarCanvasCreated}
+      >
         <color attach="background" args={["#070b16"]} />
         <ambientLight intensity={1.4} />
         <directionalLight position={[3, 4, 5]} intensity={2.4} />
